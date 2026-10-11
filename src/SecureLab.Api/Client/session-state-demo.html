@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecureLab — стан сеансу</title>
+</head>
+<body>
+  <main>
+    <h1>Стан навчального сеансу</h1>
+    <p id="session-state" aria-live="polite">Перевірка сеансу…</p>
+    <p id="message" aria-live="polite"></p>
+    <button id="refresh" type="button">Оновити</button>
+    <button id="logout" type="button">Вийти</button>
+    <p><a href="/auth-lab.html">Відкрити повний навчальний сценарій</a></p>
+  </main>
+  <script type="module" src="session-state-demo.js"></script>
+</body>
+</html>

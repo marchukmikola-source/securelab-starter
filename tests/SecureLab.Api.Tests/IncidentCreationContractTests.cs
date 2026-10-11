@@ -71,15 +71,44 @@ public sealed class IncidentCreationContractTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Create_WithCombinedSeverityNames_Returns400ProblemDetails()
     {
-        using var response = await PostCreateAsync(new
-        {
-            title = "Перевірка комбінованого severity",
-            description = "Коректний опис для перевірки формату severity.",
-            severity = "Low,High",
-            occurredAtUtc = DateTimeOffset.UtcNow
-        });
+        Guid? createdIncidentId = null;
 
-        await AssertValidationProblemAsync(response, "severity");
+        try
+        {
+            using var response = await PostCreateAsync(new
+            {
+                title = "Перевірка комбінованого severity",
+                description = "Коректний опис для перевірки формату severity.",
+                severity = "Low,High",
+                occurredAtUtc = DateTimeOffset.UtcNow
+            });
+
+            // A regression must not leave a record behind merely because this
+            // test correctly detects that the endpoint returned 201 by mistake.
+            if (response.StatusCode == HttpStatusCode.Created)
+            {
+                using var document = JsonDocument.Parse(
+                    await response.Content.ReadAsStringAsync());
+
+                createdIncidentId = document.RootElement
+                    .GetProperty("id")
+                    .GetGuid();
+            }
+
+            await AssertValidationProblemAsync(response, "severity");
+        }
+        finally
+        {
+            if (createdIncidentId is Guid id)
+            {
+                using var scope = factory.Services.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<SecureLabDbContext>();
+
+                await db.Incidents
+                    .Where(item => item.Id == id)
+                    .ExecuteDeleteAsync();
+            }
+        }
     }
 
     [Fact]
@@ -1035,11 +1064,21 @@ public sealed class IncidentCreationContractTests(SecureLabApiFactory factory)
         }
     }
 
-    private Task<HttpResponseMessage> PostCreateAsync(
-        object request) =>
-        _client.PostAsJsonAsync(
+    private async Task<HttpResponseMessage> PostCreateAsync(
+        object request)
+    {
+        using var client = await factory.LoginAsync(
+            "alice",
+            GetLocalStudyPassword());
+
+        return await client.PostAsJsonAsync(
             "/api/incidents",
             request);
+    }
+
+    private static string GetLocalStudyPassword() =>
+        Environment.GetEnvironmentVariable("SeedUsers__Password")
+        ?? throw new InvalidOperationException("Set local SeedUsers__Password outside Git.");
 
     private static async Task AssertValidationProblemAsync(
         HttpResponseMessage response,

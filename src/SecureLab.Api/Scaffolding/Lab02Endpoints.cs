@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
@@ -116,6 +117,7 @@ public static class Lab02Endpoints
             "/api/incidents",
             async (
                 CreateIncidentRequest request,
+                HttpContext httpContext,
                 SecureLabDbContext db,
                 CancellationToken ct) =>
             {
@@ -185,7 +187,16 @@ public static class Lab02Endpoints
                         ignoreCase: true,
                         out severity)
                     &&
-                    Enum.IsDefined(severity);
+                    Enum.IsDefined(severity)
+                    &&
+                    // Enum.TryParse accepts comma-separated names even for
+                    // a non-[Flags] enum. The HTTP contract accepts exactly
+                    // one declared severity name, never a composite or a
+                    // numeric representation.
+                    string.Equals(
+                        request.Severity,
+                        Enum.GetName(severity),
+                        StringComparison.OrdinalIgnoreCase);
 
                 if (!severityIsValid)
                 {
@@ -274,6 +285,18 @@ public static class Lab02Endpoints
                         errors);
                 }
 
+                // The resource owner is server-controlled. Authentication has
+                // already established this principal from the application
+                // cookie; no client field or request header participates.
+                var principalId = httpContext.User
+                    .FindFirst(ClaimTypes.NameIdentifier)
+                    ?.Value;
+
+                if (!Guid.TryParse(principalId, out var ownerUserId))
+                {
+                    return Results.Unauthorized();
+                }
+
                 // ----------------------------------------------------
                 // 8. T-03 — duplicate active title
                 //
@@ -327,8 +350,7 @@ public static class Lab02Endpoints
                 {
                     Id = Guid.NewGuid(),
 
-                    OwnerUserId =
-                        DbSeeder.AliceId,
+                    OwnerUserId = ownerUserId,
 
                     Title = title,
 
@@ -372,7 +394,10 @@ public static class Lab02Endpoints
             .ProducesValidationProblem(
                 StatusCodes.Status400BadRequest)
             .ProducesProblem(
-                StatusCodes.Status409Conflict);
+                StatusCodes.Status409Conflict)
+            .ProducesProblem(
+                StatusCodes.Status401Unauthorized)
+            .RequireAuthorization();
     }
 
     // ================================================================

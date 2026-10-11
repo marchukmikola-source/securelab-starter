@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SecureLab — навчальний сеанс</title>
+</head>
+<body>
+  <main>
+    <h1>Навчальний сеанс SecureLab</h1>
+    <p id="session-state" aria-live="polite">Перевірка сеансу…</p>
+    <p id="message" aria-live="polite"></p>
+
+    <section aria-labelledby="register-heading">
+      <h2 id="register-heading">Реєстрація</h2>
+      <form id="register-form">
+        <label>Ім’я користувача <input name="userName" autocomplete="username" required></label>
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Ім’я профілю <input name="displayName" autocomplete="name" required></label>
+        <label>Пароль <input name="password" type="password" autocomplete="new-password" required></label>
+        <button type="submit">Зареєструватися</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="login-heading">
+      <h2 id="login-heading">Вхід</h2>
+      <form id="login-form">
+        <label>Ім’я користувача <input name="userName" autocomplete="username" required></label>
+        <label>Пароль <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Увійти</button>
+      </form>
+      <button id="logout" type="button">Вийти</button>
+    </section>
+
+    <section aria-labelledby="profile-heading">
+      <h2 id="profile-heading">Мій профіль</h2>
+      <button id="refresh-profile" type="button">Оновити профіль</button>
+      <dl id="profile" aria-live="polite"></dl>
+    </section>
+
+    <section aria-labelledby="incident-heading">
+      <h2 id="incident-heading">Новий інцидент</h2>
+      <form id="incident-form">
+        <label>Заголовок <input name="title" maxlength="160" required></label>
+        <label>Опис <textarea name="description" maxlength="4000" required></textarea></label>
+        <label>Severity
+          <select name="severity" required>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </label>
+        <label>Час події <input name="occurredAtUtc" type="datetime-local" required></label>
+        <button type="submit">Створити інцидент</button>
+      </form>
+      <p id="incident-result" aria-live="polite"></p>
+    </section>
+  </main>
+  <script type="module" src="auth-lab.js"></script>
+</body>
+</html>
