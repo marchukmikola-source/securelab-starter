@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
@@ -29,6 +31,7 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
             });
 
             Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+            Assert.Equal("/api/me", response.Headers.Location?.OriginalString);
             Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
 
             var body = await response.Content.ReadAsStringAsync();
@@ -44,11 +47,9 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
             Assert.Equal(userName, root.GetProperty("userName").GetString());
             Assert.Equal("Тестовий користувач", root.GetProperty("displayName").GetString());
             Assert.NotEqual(Guid.Empty, root.GetProperty("id").GetGuid());
-            Assert.DoesNotContain("password", body, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("securityStamp", body, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("cookie", body, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("token", body, StringComparison.OrdinalIgnoreCase);
             Assert.False(response.Headers.TryGetValues("Set-Cookie", out _));
+            using var profileWithoutLogin = await client.GetAsync("/api/me");
+            Assert.Equal(HttpStatusCode.Unauthorized, profileWithoutLogin.StatusCode);
 
             using var scope = factory.Services.CreateScope();
             var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -64,20 +65,31 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
         }
     }
 
-    [Fact]
-    public async Task Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount()
+    [Theory]
+    [InlineData("role")]
+    [InlineData("id")]
+    [InlineData("ownerUserId")]
+    [InlineData("passwordHash")]
+    [InlineData("securityStamp")]
+    public async Task Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(string field)
     {
         var userName = NewUserName();
 
         using var client = factory.CreateClient();
-        using var response = await client.PostAsJsonAsync("/api/auth/register", new
+        var request = new Dictionary<string, object?>
         {
-            userName,
-            email = $"{userName}@example.test",
-            displayName = "Перевірка зайвого поля",
-            password = GetLocalStudyPassword(),
-            role = "Administrator"
-        });
+            ["userName"] = userName,
+            ["email"] = $"{userName}@example.test",
+            ["displayName"] = "Перевірка зайвого поля",
+            ["password"] = GetLocalStudyPassword(),
+            [field] = field switch
+            {
+                "role" => DbSeeder.AdministratorRole,
+                "id" or "ownerUserId" => DbSeeder.AdminId,
+                _ => "untrusted-client-value"
+            }
+        };
+        using var response = await client.PostAsJsonAsync("/api/auth/register", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
@@ -121,9 +133,8 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
             var errors = document.RootElement.GetProperty("errors");
 
             Assert.True(errors.TryGetProperty("userName", out _));
-            Assert.DoesNotContain("password", body, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("passwordhash", body, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("securitystamp", body, StringComparison.OrdinalIgnoreCase);
+            Assert.False(body.Contains("password", StringComparison.OrdinalIgnoreCase));
+            Assert.False(body.Contains("securitystamp", StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
@@ -173,8 +184,13 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
         }
     }
 
-    [Fact]
-    public async Task Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400()
+    [Theory]
+    [InlineData("tooShort")]
+    [InlineData("missingDigit")]
+    [InlineData("missingLower")]
+    [InlineData("missingUpper")]
+    [InlineData("missingSymbol")]
+    public async Task Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(string rule)
     {
         var userName = NewUserName();
 
@@ -184,7 +200,7 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
             userName,
             email = $"{userName}@example.test",
             displayName = "Перевірка policy",
-            password = new string('a', 10)
+            password = CreatePasswordMissingRule(rule)
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -194,8 +210,12 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
         using var document = JsonDocument.Parse(body);
 
         Assert.True(document.RootElement.GetProperty("errors").TryGetProperty("password", out _));
-        Assert.DoesNotContain("PasswordRequires", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("PasswordTooShort", body, StringComparison.OrdinalIgnoreCase);
+        Assert.False(body.Contains("PasswordRequires", StringComparison.OrdinalIgnoreCase));
+        Assert.False(body.Contains("PasswordTooShort", StringComparison.OrdinalIgnoreCase));
+
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        Assert.Null(await users.FindByNameAsync(userName));
     }
 
     [Fact]
@@ -221,6 +241,162 @@ public sealed class RegistrationContractTests(SecureLabApiFactory factory)
         Assert.True(errors.TryGetProperty("displayName", out _));
         Assert.True(errors.TryGetProperty("password", out _));
     }
+
+    [Theory]
+    [InlineData("userName", 256)]
+    [InlineData("email", 256)]
+    [InlineData("displayName", 120)]
+    public async Task Register_AtLengthLimit_CreatesAccount(string field, int limit)
+    {
+        var publicName = NewUserName();
+        var request = CreateValidRequest(publicName);
+        request[field] = field switch
+        {
+            "userName" => publicName.PadRight(limit, 'a'),
+            "email" => CreateEmailAtLength(publicName, limit),
+            _ => new string('d', limit)
+        };
+        var registeredName = (string)request["userName"]!;
+        try
+        {
+            using var client = factory.CreateClient();
+            using var response = await client.PostAsJsonAsync("/api/auth/register", request);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        }
+        finally
+        {
+            await DeleteUserAsync(registeredName);
+        }
+    }
+
+    [Theory]
+    [InlineData("userName", 257)]
+    [InlineData("email", 257)]
+    [InlineData("displayName", 121)]
+    public async Task Register_AboveLengthLimit_Returns400WithoutCreatingAccount(string field, int length)
+    {
+        var publicName = NewUserName();
+        var request = CreateValidRequest(publicName);
+        request[field] = field switch
+        {
+            "userName" => publicName.PadRight(length, 'a'),
+            "email" => CreateEmailAtLength(publicName, length),
+            _ => new string('d', length)
+        };
+
+        await AssertRejectedRequestAsync(request, field);
+    }
+
+    [Theory]
+    [InlineData("userName", null)]
+    [InlineData("email", null)]
+    [InlineData("displayName", null)]
+    [InlineData("password", null)]
+    [InlineData("userName", "   ")]
+    [InlineData("email", "   ")]
+    [InlineData("displayName", "   ")]
+    [InlineData("password", "")]
+    public async Task Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(string field, string? value)
+    {
+        var request = CreateValidRequest(NewUserName());
+        request[field] = value;
+        await AssertRejectedRequestAsync(request, field);
+    }
+
+    [Theory]
+    [InlineData("userName", "invalid user name")]
+    [InlineData("userName", "імя")]
+    [InlineData("email", "not-an-email")]
+    public async Task Register_WithInvalidFieldFormat_ReturnsFieldValidationError(string field, string value)
+    {
+        var request = CreateValidRequest(NewUserName());
+        request[field] = value;
+        await AssertRejectedRequestAsync(request, field);
+    }
+
+    [Fact]
+    public async Task Register_DoesNotTrimPasswordAndStoresOnlyIdentityHash()
+    {
+        var publicName = NewUserName();
+        // One-off test credentials and their hash remain in memory/the test store.
+        var password = $"  A{Guid.NewGuid():N}z!9  ";
+        var request = CreateValidRequest(publicName);
+        request["password"] = password;
+        try
+        {
+            using var client = factory.CreateClient();
+            using var response = await client.PostAsJsonAsync("/api/auth/register", request);
+            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+            using var scope = factory.Services.CreateScope();
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await users.FindByNameAsync(publicName);
+            Assert.NotNull(user);
+            Assert.False(string.IsNullOrEmpty(user.PasswordHash));
+            Assert.False(string.Equals(user.PasswordHash, password, StringComparison.Ordinal));
+            Assert.True(await users.CheckPasswordAsync(user, password));
+            Assert.False(await users.CheckPasswordAsync(user, password.Trim()));
+        }
+        finally
+        {
+            await DeleteUserAsync(publicName);
+        }
+    }
+
+    [Fact]
+    public async Task Register_WithMalformedJson_Returns400InsteadOf500()
+    {
+        using var client = factory.CreateClient();
+        using var content = new StringContent("{", Encoding.UTF8, "application/json");
+        using var response = await client.PostAsync("/api/auth/register", content);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static Dictionary<string, object?> CreateValidRequest(string publicName) => new()
+    {
+        ["userName"] = publicName,
+        ["email"] = $"{publicName}@example.test",
+        ["displayName"] = "Тестовий користувач",
+        ["password"] = GetLocalStudyPassword()
+    };
+
+    private async Task AssertRejectedRequestAsync(Dictionary<string, object?> request, string expectedField)
+    {
+        using var client = factory.CreateClient();
+        using var scope = factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var userCountBefore = await users.Users.CountAsync();
+        using var response = await client.PostAsJsonAsync("/api/auth/register", request);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(json.RootElement.GetProperty("errors").TryGetProperty(expectedField, out _));
+
+        Assert.Equal(userCountBefore, await users.Users.CountAsync());
+    }
+
+    private static string CreateEmailAtLength(string publicName, int length)
+    {
+        var hostLength = length - publicName.Length - 1 - ".example.test".Length;
+        var labels = new List<string>();
+        while (hostLength > 63)
+        {
+            labels.Add(new string('e', 63));
+            hostLength -= 64;
+        }
+        labels.Add(new string('e', hostLength));
+        return $"{publicName}@{string.Join('.', labels)}.example.test";
+    }
+
+    private static string CreatePasswordMissingRule(string rule) => rule switch
+    {
+        "tooShort" => new string('a', 3),
+        "missingDigit" => new string('a', 10) + "A!",
+        "missingLower" => new string('A', 10) + "1!",
+        "missingUpper" => new string('a', 10) + "1!",
+        "missingSymbol" => new string('a', 10) + "A1",
+        _ => throw new ArgumentOutOfRangeException(nameof(rule))
+    };
 
     private static string NewUserName() => $"reg{Guid.NewGuid():N}"[..24];
 

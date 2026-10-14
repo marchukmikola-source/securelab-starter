@@ -241,7 +241,7 @@ public static class Lab03Identity
         }
         else if (!EmailAddressValidator.IsValid(email))
         {
-            errors["email"] = ["Email має коректний формат."];
+            errors["email"] = ["Email має мати коректний формат."];
         }
 
         if (string.IsNullOrWhiteSpace(displayName))
@@ -317,6 +317,22 @@ public static class Lab03Identity
                 {
                     ["password"] = ["Пароль не відповідає налаштованим вимогам."]
                 });
+        }
+
+        var fieldErrors = new Dictionary<string, string[]>();
+        if (codes.Contains("InvalidUserName"))
+        {
+            fieldErrors["userName"] = ["Ім’я користувача має містити лише допустимі символи."];
+        }
+
+        if (codes.Contains("InvalidEmail"))
+        {
+            fieldErrors["email"] = ["Email має мати коректний формат."];
+        }
+
+        if (fieldErrors.Count > 0)
+        {
+            return Results.ValidationProblem(fieldErrors);
         }
 
         return Results.ValidationProblem(

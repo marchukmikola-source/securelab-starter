@@ -16,6 +16,13 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
         using var response = await client.GetAsync("/api/me");
 
         await AssertUnauthorizedProblemAsync(response);
+
+        // The original scaffold trusted this header without a cookie. A forged
+        // identifier must not bypass authentication in the corrected endpoint.
+        using var forgedRequest = new HttpRequestMessage(HttpMethod.Get, "/api/me");
+        forgedRequest.Headers.Add("X-Demo-UserId", DbSeeder.BobId.ToString());
+        using var forgedResponse = await client.SendAsync(forgedRequest);
+        await AssertUnauthorizedProblemAsync(forgedResponse);
     }
 
     [Fact]
@@ -46,14 +53,31 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
         using var unknownUserProblem = JsonDocument.Parse(unknownUserBody);
         using var wrongPasswordProblem = JsonDocument.Parse(wrongPasswordBody);
 
-        Assert.Equal(
-            unknownUserProblem.RootElement.GetProperty("status").GetInt32(),
-            wrongPasswordProblem.RootElement.GetProperty("status").GetInt32());
-        Assert.Equal(
-            unknownUserProblem.RootElement.GetProperty("title").GetString(),
-            wrongPasswordProblem.RootElement.GetProperty("title").GetString());
-        Assert.DoesNotContain("password", unknownUserBody, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("password", wrongPasswordBody, StringComparison.OrdinalIgnoreCase);
+        // Compare the stable external Problem Details contract. Request-specific
+        // diagnostic metadata is not an authentication outcome.
+        foreach (var field in new[] { "type", "title", "status", "detail", "code", "message" })
+        {
+            var unknownHasField = unknownUserProblem.RootElement.TryGetProperty(field, out var unknownValue);
+            var wrongHasField = wrongPasswordProblem.RootElement.TryGetProperty(field, out var wrongValue);
+
+            Assert.Equal(unknownHasField, wrongHasField);
+            if (unknownHasField)
+            {
+                Assert.True(
+                    unknownValue.GetRawText() == wrongValue.GetRawText(),
+                    $"Login failure contract differs in field '{field}' (values omitted).");
+            }
+        }
+        foreach (var problem in new[] { unknownUserProblem.RootElement, wrongPasswordProblem.RootElement })
+        {
+            if (problem.TryGetProperty("traceId", out var traceId))
+            {
+                Assert.Equal(JsonValueKind.String, traceId.ValueKind);
+                Assert.False(string.IsNullOrWhiteSpace(traceId.GetString()));
+            }
+        }
+        Assert.False(unknownUserBody.Contains("password", StringComparison.OrdinalIgnoreCase));
+        Assert.False(wrongPasswordBody.Contains("password", StringComparison.OrdinalIgnoreCase));
         Assert.Null(unknownUserResponse.Headers.Location);
         Assert.Null(wrongPasswordResponse.Headers.Location);
         Assert.Empty(unknownUserResponse.Headers.WwwAuthenticate);
@@ -67,19 +91,25 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
         using var response = await LoginAsAliceAsync(client);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.True(string.IsNullOrEmpty(await response.Content.ReadAsStringAsync()),
+            "Login must return no credentials or response body (content omitted).");
 
         var setCookies = response.Headers.TryGetValues("Set-Cookie", out var values)
             ? values.ToArray()
             : [];
 
-        var applicationCookie = Assert.Single(setCookies, value =>
-            value.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal));
-
-        Assert.Contains("httponly", applicationCookie, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("samesite=lax", applicationCookie, StringComparison.OrdinalIgnoreCase);
+        // Discard the value before assertions, including failure diagnostics.
+        var applicationCookieAttributes = setCookies
+            .Where(value => value.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal))
+            .Select(value => value.Split(';').Skip(1)
+                .Select(attribute => attribute.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase));
+        var attributes = Assert.Single(applicationCookieAttributes);
+        Assert.Contains("HttpOnly", attributes);
+        Assert.Contains("SameSite=Lax", attributes);
         // The test client uses HTTPS, so Development's SameAsRequest policy
         // must emit Secure on the application cookie.
-        Assert.Contains("secure", applicationCookie, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Secure", attributes);
     }
 
     [Fact]
@@ -110,9 +140,9 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
         Assert.Equal(DbSeeder.AliceId, profile.GetProperty("id").GetGuid());
         Assert.Equal("alice", profile.GetProperty("userName").GetString());
         Assert.Equal("Аліса Коваль", profile.GetProperty("displayName").GetString());
-        Assert.DoesNotContain("email", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("password", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("securityStamp", body, StringComparison.OrdinalIgnoreCase);
+        Assert.False(body.Contains("email", StringComparison.OrdinalIgnoreCase));
+        Assert.False(body.Contains("password", StringComparison.OrdinalIgnoreCase));
+        Assert.False(body.Contains("securityStamp", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -135,12 +165,35 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
             ? values.ToArray()
             : [];
 
-        Assert.Contains(setCookies, value =>
+        Assert.True(setCookies.Any(value =>
             value.StartsWith(".AspNetCore.Identity.Application=", StringComparison.Ordinal)
-            && value.Contains("expires=", StringComparison.OrdinalIgnoreCase));
+            && value.Contains("expires=", StringComparison.OrdinalIgnoreCase)),
+            "Logout must expire the application cookie (value omitted).");
 
         using var afterLogout = await client.GetAsync("/api/me");
         await AssertUnauthorizedProblemAsync(afterLogout);
+
+        using var createAfterLogout = await client.PostAsJsonAsync("/api/incidents", new
+        {
+            title = $"After logout {Guid.NewGuid():N}",
+            description = "This operation requires a verified authenticated principal.",
+            severity = "Low",
+            occurredAtUtc = DateTimeOffset.UtcNow
+        });
+        await AssertUnauthorizedProblemAsync(createAfterLogout);
+    }
+
+    [Fact]
+    public async Task Me_WithForgedCookieAndForeignHeader_Returns401()
+    {
+        using var client = CreateCookieClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me");
+        request.Headers.Add("Cookie", ".AspNetCore.Identity.Application=invalid-ticket");
+        request.Headers.Add("X-Demo-UserId", DbSeeder.BobId.ToString());
+
+        using var response = await client.SendAsync(request);
+
+        await AssertUnauthorizedProblemAsync(response);
     }
 
     private HttpClient CreateCookieClient() => factory.CreateClient(
@@ -172,7 +225,7 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
         var body = await response.Content.ReadAsStringAsync();
         using var document = JsonDocument.Parse(body);
         Assert.Equal(401, document.RootElement.GetProperty("status").GetInt32());
-        Assert.DoesNotContain("stack trace", body, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("password", body, StringComparison.OrdinalIgnoreCase);
+        Assert.False(body.Contains("stack trace", StringComparison.OrdinalIgnoreCase));
+        Assert.False(body.Contains("password", StringComparison.OrdinalIgnoreCase));
     }
 }

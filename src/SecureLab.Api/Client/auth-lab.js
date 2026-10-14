@@ -60,11 +60,19 @@ async function loadProfile() {
 
   if (!response.ok) {
     clearProfile();
+    showSessionState("unknown");
     showMessage(`Не вдалося отримати профіль: ${response.status}.`);
     return false;
   }
 
-  const currentUser = await readJson(response);
+  let currentUser;
+  try {
+    currentUser = await readJson(response);
+  } catch (error) {
+    clearProfile();
+    showSessionState("unknown");
+    throw error;
+  }
   showProfile(currentUser);
   showSessionState("signed-in");
   return true;
@@ -162,6 +170,7 @@ document.querySelector("#refresh-profile").addEventListener("click", async () =>
     await loadProfile();
   } catch {
     clearProfile();
+    showSessionState("unknown");
     showMessage("Не вдалося отримати профіль.");
   }
 });

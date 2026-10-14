@@ -21,7 +21,8 @@ public sealed class AuthenticationProtectionTests
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost"),
-            AllowAutoRedirect = false
+            AllowAutoRedirect = false,
+            HandleCookies = true
         });
 
         var invalidPassword = $"invalid-{Guid.NewGuid():N}";
@@ -29,6 +30,11 @@ public sealed class AuthenticationProtectionTests
         {
             userName = "rate-limit-test-user",
             password = invalidPassword
+        };
+        var validRequest = new
+        {
+            userName = "alice",
+            password = GetLocalStudyPassword()
         };
 
         for (var attempt = 0; attempt < LoginAttemptLimiter.MaximumFailedAttempts; attempt++)
@@ -45,14 +51,24 @@ public sealed class AuthenticationProtectionTests
             Assert.Empty(blockedResponse.Headers.WwwAuthenticate);
 
             var body = await blockedResponse.Content.ReadAsStringAsync();
-            Assert.DoesNotContain("rate-limit-test-user", body, StringComparison.Ordinal);
-            Assert.DoesNotContain("password", body, StringComparison.OrdinalIgnoreCase);
+            Assert.False(body.Contains("rate-limit-test-user", StringComparison.Ordinal));
+            Assert.False(body.Contains("password", StringComparison.OrdinalIgnoreCase));
+        }
+
+        // The IP partition also blocks valid credentials until the window
+        // expires; changing the account name cannot bypass the policy.
+        using (var blockedValidResponse = await client.PostAsJsonAsync("/api/auth/login", validRequest))
+        {
+            Assert.Equal(HttpStatusCode.TooManyRequests, blockedValidResponse.StatusCode);
         }
 
         clock.Advance(LoginAttemptLimiter.Window.Add(TimeSpan.FromSeconds(1)));
 
-        using var recoveredResponse = await client.PostAsJsonAsync("/api/auth/login", invalidRequest);
-        Assert.Equal(HttpStatusCode.Unauthorized, recoveredResponse.StatusCode);
+        using var recoveredResponse = await client.PostAsJsonAsync("/api/auth/login", validRequest);
+        Assert.Equal(HttpStatusCode.NoContent, recoveredResponse.StatusCode);
+
+        using var profileResponse = await client.GetAsync("/api/me");
+        Assert.Equal(HttpStatusCode.OK, profileResponse.StatusCode);
     }
 
     [Fact]
@@ -115,18 +131,20 @@ public sealed class AuthenticationProtectionTests
             .Select(entry => entry.Message)
             .ToArray();
 
-        Assert.Contains("Authentication event: login succeeded.", events);
-        Assert.Contains("Authentication event: login failed.", events);
-        Assert.Contains("Authentication event: login rate limited.", events);
-        Assert.Contains("Authentication event: logout completed.", events);
-
-        Assert.All(events, entry =>
+        var allowedEvents = new HashSet<string>(StringComparer.Ordinal)
         {
-            Assert.DoesNotContain("password", entry, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("cookie", entry, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("token", entry, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("audit-test-unknown-user", entry, StringComparison.Ordinal);
-        });
+            "Authentication event: login succeeded.",
+            "Authentication event: login failed.",
+            "Authentication event: login rate limited.",
+            "Authentication event: logout completed."
+        };
+        foreach (var requiredEvent in allowedEvents)
+        {
+            Assert.True(events.Contains(requiredEvent),
+                $"Missing auth outcome '{requiredEvent}' (observed messages omitted).");
+        }
+        Assert.True(events.All(allowedEvents.Contains),
+            "Auth events must contain only approved outcomes (messages omitted).");
     }
 
     private static string GetLocalStudyPassword() =>

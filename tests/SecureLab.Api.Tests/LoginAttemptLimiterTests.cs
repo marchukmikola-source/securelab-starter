@@ -20,7 +20,7 @@ public sealed class LoginAttemptLimiterTests
         Assert.True(limiter.IsBlocked("192.0.2.10"));
         Assert.False(limiter.IsBlocked("192.0.2.11"));
 
-        clock.Advance(LoginAttemptLimiter.Window.Add(TimeSpan.FromSeconds(1)));
+        clock.Advance(LoginAttemptLimiter.Window);
 
         Assert.False(limiter.IsBlocked("192.0.2.10"));
     }
