@@ -1,0 +1,41 @@
+SecureLab LR04 step 4: actual local HTTP PoC, 2026-10-17
+API: http://localhost:5084; isolated synthetic PostgreSQL database.
+Build: 0 warnings, 0 errors. Tests: 91 passed, 0 failed, 0 skipped.
+Seed before PoC: users=4 incidents=5 comments=3.
+State: vulnerable; expected exploit observations are NOT passing security-contract tests.
+Credentials and cookie values omitted; only safe selected response fields follow.
+
+seed_password_present=true
+login_json_roundtrip=true
+expect=vulnerable
+alice_login_status=204
+alice_verified_subject=10000000-0000-0000-0000-000000000001
+bob_login_status=204
+bob_verified_subject=10000000-0000-0000-0000-000000000002
+morgan_login_status=204
+morgan_verified_subject=10000000-0000-0000-0000-000000000003
+{"scenario": "A-02 Alice -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-03 Alice -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+alice_same_cookie_for_own_and_foreign=true
+{"scenario": "A-10 Alice -> missing", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-0f1a3ad85dbbc08e66cd0339c5297112-af2595e4634d41d3-00"}}
+{"scenario": "Bob -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "Bob -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-03R Morgan -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "Morgan -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-01 Anonymous -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-05 Alice list", "status": 200, "containsBob": true, "count": 5}
+{"scenario": "A-11 Alice search Bob title", "status": 200, "containsBob": true, "count": 1}
+{"scenario": "A-11 Alice summary", "status": 200, "counts": [{"severity": "Critical", "count": 0}, {"severity": "High", "count": 1}, {"severity": "Medium", "count": 1}, {"severity": "Low", "count": 3}]}
+{"scenario": "Mutation: Bob reads before", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-04 Alice updates Bob", "status": 204, "contentType": "text/plain"}
+{"scenario": "Mutation: Bob reads after", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "LR04 controlled update by Alice", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+foreign_content_changed=true
+protected_response_fields_unchanged=true
+anonymous_update_status=401
+{"scenario": "Mutation: Bob reads after forged request", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "LR04 controlled update by Alice", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+forged_fields_status=400; rejected_request_state_unchanged=true
+{"scenario": "Mutation: Bob restores content", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+original_content_restored=true
+poc_checks=passed
+security_contract=NOT_SATISFIED (IDOR and anonymous disclosure reproduced)
+isolated_database_removed=true
