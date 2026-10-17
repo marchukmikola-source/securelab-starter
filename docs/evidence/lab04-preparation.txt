@@ -1,0 +1,63 @@
+SecureLab LR04: preparation and access matrix (steps 1-2)
+Date: 2026-10-17
+Environment: local synthetic PostgreSQL; no external HTTP host used.
+
+GIT START STATE
+Base tag: v0.3.0
+Base commit: 39ab3aaf74ad444f9ecc94bb4b03791aa868a18e
+Branch created: lab/4-authorization
+Clean tracked/untracked working tree verified immediately before branch creation.
+Existing LR03 work preserved in local stash:
+421243188a6f73fa11f7efe64614831b7ee192df
+The uncommitted experimental hasher test was saved separately under ignored tmp/.
+The original safe hasher-upgrade test from v0.3.0 is retained on the LR04 branch.
+Tag v0.3.0 and branch lab/3-authentication were not moved. No push performed.
+
+SDK AND BUILD
+global.json: minimum SDK 10.0.100, latestFeature, allowPrerelease=false.
+Selected installed SDK: 10.0.402.
+dotnet restore SecureLab.sln --locked-mode: succeeded, exit code 0.
+dotnet build SecureLab.sln -c Release --no-restore: succeeded, exit code 0.
+Build warnings: 0. Build errors: 0. Elapsed: 11.89 s.
+PackageReference versions and packages.lock.json files were not changed.
+
+SEED AND REPEATABILITY
+The local API was not running before reset.
+Both resets replaced local database data with the synthetic seed.
+Seed password was passed through process environment only; its value is omitted.
+Each reset: users=4 roles=3 memberships=4 incidents=5 comments=3
+internalComments=1 history=1.
+Fixed account identifiers, roles, incident owners and internal-comment links: valid.
+Auxiliary authentication tables: empty. Legacy study_users store: absent.
+Internal comment: 30000000-0000-0000-0000-000000000003.
+Parent: Alice incident 20000000-0000-0000-0000-000000000001.
+Author: Morgan 10000000-0000-0000-0000-000000000003. IsInternal=true.
+Reset 1 full Release suite: Passed=91 Failed=0 Skipped=0 Total=91, duration 9 s.
+Reset 2 full Release suite: Passed=91 Failed=0 Skipped=0 Total=91, duration 8 s.
+Two-reset logical state equality: True.
+Verification script: scripts/verify_lab03.ps1 -ResetTwice; exit code 0.
+The retained LR03 helper is adapted on this branch to the LR04 three-comment seed.
+Password hashes, security stamps and tokens were not used in logical comparison.
+Post-suite database check: users=4 roles=3 incidents=5 comments=3 internalComments=1.
+Alice/Bob incident ownership and fixed internal-comment relationship: valid.
+
+LOCAL API CHECKS
+API started in Development on http://localhost:5080.
+GET /health: 200.
+Anonymous GET /api/me: 401.
+Password-present and JSON round-trip checks: true; password value not printed.
+Separate Alice and Bob clients: login 204, own profile 200, distinct fixed subject IDs.
+For each client: logout 204, subsequent GET /api/me 401.
+Cookies were held in memory only; no cookie values or request bodies saved here.
+These are programmatic preparation checks, not the LR04 browser PoC.
+
+ACCESS MATRIX AND SCOPE
+docs/access-matrix.md: one table, eight columns, ten access rules; no placeholders.
+Rules include Reporter ownership, Analyst read and New-to-Triaged transition,
+default denial for ungranted Administrator/delete rights, child/internal comments,
+and the existing search/severity-summary operations.
+Future HTTP contract: 404 for another Reporter's resource, 403 for forbidden
+operations on visible resources, 401 for anonymous access; update chooses A-08b.
+No LR04 authorization handlers, mutation/triage/child endpoints or PoC were added.
+Authorization scenarios A-01 through A-12 are not claimed as implemented/passed.
+SDK and seed preparation do not replace vulnerable/fixed commits required later.

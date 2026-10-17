@@ -5,6 +5,7 @@ if (-not (Test-Path 'global.json')) { throw 'Run from the SecureLab root.' }
 if (-not $env:SeedUsers__Password) { throw 'Set SeedUsers__Password outside Git.' }
 if (-not $ResetTwice) { throw 'Use -ResetTwice only for the local synthetic database.' }
 
+# Retained from LR03 and adapted to the LR04 seed (three comments, one internal).
 # Store only counts and a checksum of non-secret logical data. Identity hashes,
 # security stamps, tokens and connection strings never enter this evidence.
 $stateQuery = @'
@@ -24,6 +25,8 @@ SELECT json_build_object(
   'memberships', (SELECT count(*) FROM identity_user_roles),
   'incidents', (SELECT count(*) FROM incidents),
   'comments', (SELECT count(*) FROM incident_comments),
+  'internalComments', (SELECT count(*) FROM incident_comments WHERE is_internal),
+  'fixedInternalComment', EXISTS (SELECT 1 FROM incident_comments WHERE id = '30000000-0000-0000-0000-000000000003' AND incident_id = '20000000-0000-0000-0000-000000000001' AND author_user_id = '10000000-0000-0000-0000-000000000003' AND is_internal),
   'history', (SELECT count(*) FROM incident_status_history),
   'authAuxiliaryRows', (SELECT (SELECT count(*) FROM identity_user_claims) + (SELECT count(*) FROM identity_role_claims) + (SELECT count(*) FROM identity_user_logins) + (SELECT count(*) FROM identity_user_tokens)),
   'legacyAbsent', to_regclass('public.study_users') IS NULL,
@@ -48,11 +51,11 @@ foreach ($round in 1..2) {
     $safeState = $stateQuery | & docker compose --env-file infra/.env.example -f infra/compose.yaml exec -T postgres psql -X -v ON_ERROR_STOP=1 -U securelab -d securelab -At -f -
     if ($LASTEXITCODE -ne 0) { throw 'Logical seed verification failed.' }
     $snapshot = ($safeState -join '') | ConvertFrom-Json
-    if ($snapshot.users -ne 4 -or $snapshot.roles -ne 3 -or $snapshot.memberships -ne 4 -or $snapshot.incidents -ne 5 -or $snapshot.comments -ne 2 -or $snapshot.history -ne 1 -or $snapshot.authAuxiliaryRows -ne 0 -or -not $snapshot.fixedAccountsAndRoles -or -not $snapshot.fixedOwners -or -not $snapshot.legacyAbsent) {
+    if ($snapshot.users -ne 4 -or $snapshot.roles -ne 3 -or $snapshot.memberships -ne 4 -or $snapshot.incidents -ne 5 -or $snapshot.comments -ne 3 -or $snapshot.internalComments -ne 1 -or -not $snapshot.fixedInternalComment -or $snapshot.history -ne 1 -or $snapshot.authAuxiliaryRows -ne 0 -or -not $snapshot.fixedAccountsAndRoles -or -not $snapshot.fixedOwners -or -not $snapshot.legacyAbsent) {
         throw 'Seed invariant failed (sensitive values omitted).'
     }
     $snapshots += $snapshot
-    Write-Output "Reset ${round}: users=4 roles=3 memberships=4 incidents=5 comments=2 history=1; fixed GUIDs/roles/owners=True; auxiliary auth tables empty=True; legacy store absent=True."
+    Write-Output "Reset ${round}: users=4 roles=3 memberships=4 incidents=5 comments=3 internalComments=1 history=1; fixed GUIDs/roles/owners/internal comment=True; auxiliary auth tables empty=True; legacy store absent=True."
 
     & dotnet test tests/SecureLab.Api.Tests -c Release --logger 'console;verbosity=quiet'
     if ($LASTEXITCODE -ne 0) { throw "Tests after reset $round failed." }
