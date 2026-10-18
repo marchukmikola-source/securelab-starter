@@ -120,7 +120,7 @@ def run(args, password):
     details(anonymous, BOB, 200 if vulnerable else 401, "A-01 Anonymous -> Bob")
 
     if args.perimeter:
-        # Optional observations for the existing list/search/summary, not mutations.
+        # Required A-05/A-11 checks for the existing collection routes.
         for path, label in [
             ("/api/incidents", "A-05 Alice list"),
             ("/api/incidents/search?" + urllib.parse.urlencode({"q": "Невідома спроба входу"}),
@@ -137,9 +137,46 @@ def run(args, password):
         print(json.dumps({"scenario": "A-11 Alice summary", "status": status,
                           "counts": [{"severity": row["severity"], "count": row["count"]}
                                      for row in summary]}))
-        # The total is reported, not treated as proof of correct owner scoping.
+        counts = {row["severity"]: row["count"] for row in summary}
+        if vulnerable:
+            require(counts.get("Critical", 0) == 0 and counts.get("High", 0) == 1
+                    and counts.get("Medium", 0) == 1 and counts.get("Low", 0) == 3
+                    and sum(counts.values()) == 5,
+                    "Vulnerable summary no longer exposes the full seed")
+        else:
+            require(counts.get("Critical", 0) == 0 and counts.get("High", 0) == 0
+                    and counts.get("Medium", 0) == 1 and counts.get("Low", 0) == 2
+                    and sum(counts.values()) == 3,
+                    "Fixed summary is not restricted to Alice incidents")
+        print("a11_summary_scope_verified=true")
 
     if args.mutation:
+        own_path = "/api/incidents/" + ALICE
+        own_before = details(alice, ALICE, 200, "Positive: Alice reads own before update")[2]
+        own_payload = {"title": "LR04 positive owner update",
+                       "description": "Контрольована позитивна зміна власного інциденту для регресії ЛР 4."}
+        own_changed = False
+        try:
+            own_result = alice.request(own_path, own_payload, method="PUT")
+            own_changed = own_result[0] == 204
+            emit("A-02b Alice updates own Incident", own_result)
+            require(own_result[0] == 204, "Owner update was denied")
+            own_after = details(alice, ALICE, 200, "Positive: Alice reads own after update")[2]
+            require(own_after["title"] == own_payload["title"]
+                    and own_after["description"] == own_payload["description"],
+                    "Owner update did not change content")
+            for key in ("id", "severity", "status", "ownerDisplayName", "occurredAtUtc", "createdAtUtc", "comments"):
+                require(own_after[key] == own_before[key], "Owner update changed protected field: " + key)
+            print("owner_update_status=204; owner_content_changed=true")
+        finally:
+            if own_changed:
+                restored = alice.request(own_path, {"title": own_before["title"],
+                                                    "description": own_before["description"]}, method="PUT")
+                require(restored[0] == 204, "Owner failed to restore own original content")
+                require(details(alice, ALICE, 200, "Positive: Alice restores own content")[2] == own_before,
+                        "Own original response content was not restored")
+                print("owner_content_restored=true")
+
         path = "/api/incidents/" + BOB
         before = details(bob, BOB, 200, "Mutation: Bob reads before")[2]
         payload = {"title": "LR04 controlled update by Alice",
@@ -162,7 +199,8 @@ def run(args, password):
             require(anonymous.request(path, payload, method="PUT")[0] == 401,
                     "Anonymous update must require login")
             print("anonymous_update_status=401")
-            forged = dict(payload, ownerUserId=SUBJECTS["alice"], status="Closed", role="Administrator")
+            forged = dict(payload, ownerUserId=SUBJECTS["alice"], status="Closed",
+                          severity="Critical", role="Administrator")
             require(alice.request(path, forged, method="PUT")[0] == 400,
                     "Protected request fields must be rejected")
             require(details(bob, BOB, 200, "Mutation: Bob reads after forged request")[2] == after,

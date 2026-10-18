@@ -65,6 +65,7 @@ password, cookie, token або `Set-Cookie` values.
 |---|---|
 | A-01 anonymous -> Bob | `401` Problem Details |
 | A-02 Alice -> Alice | `200` |
+| A-02b Alice update own Incident | `204`; content змінюється, baseline відновлено |
 | A-03 / A-10 Alice -> Bob і missing | однакові безпечні `404` |
 | A-03R Morgan/Analyst -> Alice/Bob | `200` |
 | A-04 Alice update Bob | `404`; content Bob не змінився |

@@ -23,6 +23,10 @@ A-01 Anonymous -> Bob: 401 application/problem+json
 A-05 Alice list: 200; containsBob=false; count=3
 A-11 Alice search Bob title: 200; containsBob=false; count=0
 A-11 Alice summary: Critical=0, High=0, Medium=1, Low=2
+a11_summary_scope_verified=true
+A-02b Alice update own Incident: 204
+owner_update_status=204; owner_content_changed=true
+owner_content_restored=true
 A-04 Alice updates Bob: 404
 foreign_content_changed=false
 protected_response_fields_unchanged=true
