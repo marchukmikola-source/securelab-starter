@@ -24,6 +24,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddScoped<IncidentQueries>();
+builder.Services.AddSingleton<IncidentAccessRules>();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 
 builder.AddLab03Identity();

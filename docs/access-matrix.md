@@ -13,11 +13,10 @@ Morgan/Analyst читає інцидент для аналізу.
 (с. 37-39), матриця перевірок (с. 52-53), фіксований сценарій (с. 54);
 [картка baseline 2-A](variant-02-a.md).
 
-Дата огляду коду: 17.10.2026. **Матриця визначає правила, але сама не
-реалізує захист.** Фактичний стан зазначено в останній колонці.
-Позначення A-01 ... A-12 тут належать до ЛР 4 і є планом перевірок,
-якщо прямо не названо наявний тест ЛР 3. Новий запуск тестів і фактичне
-проходження сценаріїв ЛР 4 цим оглядом не заявляються.
+Дата фінального огляду коду: 18.10.2026. Матриця визначає правила, які
+реалізовані в endpoint/query-коді; фактичні результати наведено в останній
+колонці та [звіті](report-lab-04.md). Позначення A-01 ... A-12 належать до
+ЛР 4. Вразливий PoC збережено окремо, а fixed PoC підтверджує контракт.
 
 ## Суб'єкт і контекст рішення
 
@@ -45,16 +44,16 @@ Morgan/Analyst читає інцидент для аналізу.
 
 | Дія | Рівень | Анонім | Reporter | Analyst | Administrator | Власник ресурсу має значення? | Стан реалізації |
 |---|---|---|---|---|---|---|---|
-| Список: `GET /api/incidents` | Добрий | deny, `401`, без redirect | allow, `200`, лише власні інциденти | allow, `200`, усі інциденти для аналізу | deny, `403`; окремого права читання не надано | Так для Reporter; ні для Analyst | Потрібно реалізувати. `IncidentEndpoints.GetListAsync` / `IncidentQueries.GetListAsync` зараз без principal та owner scope. План: A-05 і перевірки ролей. |
-| Пошук: `GET /api/incidents/search` | Відмінний | deny, `401`, без redirect | allow, `200`, пошук лише серед власних інцидентів | allow, `200`, пошук серед усіх інцидентів для аналізу | deny, `403` | Так для Reporter; ні для Analyst | Потрібно реалізувати. Search у `Lab02Endpoints.MapLab02Endpoints` зараз без авторизації та owner scope. Зберегти параметризацію, escaping і allowlist сортування. План: A-11. |
-| Зведення: `GET /api/incidents/severity-summary` | Відмінний | deny, `401`, без redirect | allow, `200`, кількості лише за власними інцидентами | allow, `200`, кількості за всіма інцидентами для аналізу | deny, `403` | Так для Reporter; ні для Analyst | Потрібно реалізувати. `IncidentQueries.GetSeveritySummaryAsync` зараз агрегує без user scope. План: A-11; scope застосувати до `GroupBy`. |
-| Деталі: `GET /api/incidents/{id}` | Достатній; головна action та entry-контракт ЛР 5 | deny, `401`, без redirect | owner: allow, `200`, без internal comments; non-owner: deny, `404` | allow, `200`, будь-який наявний інцидент; internal comments лише після дозволу на parent | deny, `403` | Так для Reporter; ні для Analyst | Потрібно реалізувати. `IncidentQueries.GetDetailsAsync` обирає лише за `id`; `IncidentEndpoints.GetDetailsAsync` не вимагає входу. План: A-01, A-02, A-03, A-03R, A-10. |
-| Створення: `POST /api/incidents` | Успадкований baseline ЛР 3 | deny, `401`, без redirect | allow, `201`, лише від власного імені | allow, `201`, лише від власного імені | deny, `403`; окремого права створення для цієї ролі не надано | Нового owner визначає сервер із principal | Частково реалізовано в `Lab02Endpoints`: authentication, server owner, `New`, safe response. Наявні тести ЛР 3: `Create_WithoutAuthentication_Returns401ProblemWithoutRedirect`, `Create_WithoutOwner_AssignsOwnerFromAuthenticatedPrincipal`, `Create_WithForeignOwnerUserId_IgnoresItAndUsesAuthenticatedPrincipal`. Обмеження ролями Reporter/Analyst ще немає; позитивний Analyst і негативний Administrator потребують перевірки. |
-| Зміна content: `PUT /api/incidents/{id}`; лише `title`, `description` | Добрий; окрема mutating operation | deny, `401`, без redirect | owner: allow, `204`, лише content; non-owner: deny, `404` | deny, `403`, навіть для власного інциденту; роль аналізу не дає content update | deny, `403` | Так для Reporter; для Analyst ownership не надає цього права | Операція ще відсутня. Потрібні централізоване рішення та окремий DTO. План: A-04, A-08b, A-10 і позитивна owner-регресія. |
-| Видалення: `DELETE /api/incidents/{id}` | Добрий; mutation perimeter | deny, `401`, без redirect | owner: deny, `403`; non-owner: deny, `404` | deny, `403` | deny, `403` | Ownership визначає видимість parent, але не дає права delete | Операція ще відсутня. Обрано заборону delete всім: явного права baseline не публікує. При додаванні маршруту потрібні відмова без mutation та A-04/A-10. |
-| Зміна стану: `POST /api/incidents/{id}/triage` | Добрий; privileged action | deny, `401`, без redirect | власний інцидент: deny, `403`, навіть у `New`; чужий: deny, `404` | allow, `204`, тільки якщо поточний status із БД - `New`; сервер встановлює лише `Triaged`; інший status: deny, `403` | deny, `403`, навіть для `New` | Для Reporter - видимість parent; для дозволу Analyst ownership не потрібне, потрібен `New` | Операція та audit відмови ще відсутні. План: A-06, A-07, A-09; після deny перевірити стан. Triage не змінює severity/content; довільна зміна severity/status заборонена. |
-| Звичайний коментар: `GET /api/incident-comments/{id}`, `IsInternal == false` | Добрий; child resource | deny, `401`, без redirect | власний parent: allow, `200`; чужий parent: deny, `404` | allow, `200`, тільки після дозволу на читання parent | deny, `403` | Так, за власником parent, не за автором коментаря | Child endpoint ще відсутній. Потрібен той самий parent read decision, що в details. План: A-12 і позитивні owner/Analyst. |
-| Internal comment: той самий child endpoint або comments у details, `IsInternal == true` | Добрий | deny, `401`, без redirect | direct child власного parent: deny, `403`; чужого parent: deny, `404`; у дозволених details internal comment не включається в response | allow, `200`, після дозволу на parent; однаково для details-проєкції та direct child | deny, `403` | Для видимості parent - так; ownership не дає Reporter права на internal text | Частково: details фільтрує `!comment.IsInternal` для всіх, включно з Analyst. Role-aware проєкція та child endpoint ще не реалізовані. План: A-12; owner-Reporter не бачить internal text, Analyst бачить. |
+| Список: `GET /api/incidents` | Добрий | deny, `401`, без redirect | allow, `200`, лише власні інциденти | allow, `200`, усі інциденти для аналізу | deny, `403`; окремого права читання не надано | Так для Reporter; ні для Analyst | Реалізовано через `IncidentAccessRules` і scoped query. Fixed PoC: Alice count=3, `containsBob=false`; tests пройшли. |
+| Пошук: `GET /api/incidents/search` | Відмінний | deny, `401`, без redirect | allow, `200`, пошук лише серед власних інцидентів | allow, `200`, пошук серед усіх інцидентів для аналізу | deny, `403` | Так для Reporter; ні для Analyst | Реалізовано в `Lab02Endpoints` зі scope до sort/take/projection. Fixed PoC Alice за назвою Bob: `200`, порожній масив. |
+| Зведення: `GET /api/incidents/severity-summary` | Відмінний | deny, `401`, без redirect | allow, `200`, кількості лише за власними інцидентами | allow, `200`, кількості за всіма інцидентами для аналізу | deny, `403` | Так для Reporter; ні для Analyst | Реалізовано зі scope до `GroupBy`. Fixed PoC Alice: Critical=0, High=0, Medium=1, Low=2. |
+| Деталі: `GET /api/incidents/{id}` | Достатній; головна action та entry-контракт ЛР 5 | deny, `401`, без redirect | owner: allow, `200`, без internal comments; non-owner: deny, `404` | allow, `200`, будь-який наявний інцидент; internal comments лише після дозволу на parent | deny, `403` | Так для Reporter; ні для Analyst | Реалізовано. Fixed PoC підтвердив Alice own `200`, Alice/Bob foreign і missing однакові `404`, Analyst `200`, anonymous `401`. |
+| Створення: `POST /api/incidents` | Успадкований baseline ЛР 3 | deny, `401`, без redirect | allow, `201`, лише від власного імені | allow, `201`, лише від власного імені | deny, `403`; окремого права створення для цієї ролі не надано | Нового owner визначає сервер із principal | Реалізовано server-side owner і явну рольову перевірку; Admin deny покрито regression test. |
+| Зміна content: `PUT /api/incidents/{id}`; лише `title`, `description` | Добрий; окрема mutating operation | deny, `401`, без redirect | owner: allow, `204`, лише content; non-owner: deny, `404` | deny, `403`, навіть для власного інциденту; роль аналізу не дає content update | deny, `403` | Так для Reporter; для Analyst ownership не надає цього права | Реалізовано. Fixed PoC: foreign `404` без зміни Bob, owner update пройшов, protected fields `400` без зміни стану. |
+| Видалення: `DELETE /api/incidents/{id}` | Добрий; mutation perimeter | deny, `401`, без redirect | owner: deny, `403`; non-owner: deny, `404` | deny, `403` | deny, `403` | Ownership визначає видимість parent, але не дає права delete | Реалізований deny endpoint. Fixed PoC підтвердив owner `403`, foreign Reporter `404`, без mutation. |
+| Зміна стану: `POST /api/incidents/{id}/triage` | Добрий; privileged action | deny, `401`, без redirect | власний інцидент: deny, `403`, навіть у `New`; чужий: deny, `404` | allow, `204`, тільки якщо поточний status із БД - `New`; сервер встановлює лише `Triaged`; інший status: deny, `403` | deny, `403`, навіть для `New` | Для Reporter - видимість parent; для дозволу Analyst ownership не потрібне, потрібен `New` | Реалізовано. Fixed PoC: Reporter `403`, Analyst `New -> Triaged`; denied audit з корельованим traceId пройшов. |
+| Звичайний коментар: `GET /api/incident-comments/{id}`, `IsInternal == false` | Добрий; child resource | deny, `401`, без redirect | власний parent: allow, `200`; чужий parent: deny, `404` | allow, `200`, тільки після дозволу на читання parent | deny, `403` | Так, за власником parent, не за автором коментаря | Реалізовано через parent access decision; fixed child PoC пройшов. |
+| Internal comment: той самий child endpoint або comments у details, `IsInternal == true` | Добрий | deny, `401`, без redirect | direct child власного parent: deny, `403`; чужого parent: deny, `404`; у дозволених details internal comment не включається в response | allow, `200`, після дозволу на parent; однаково для details-проєкції та direct child | deny, `403` | Для видимості parent - так; ownership не дає Reporter права на internal text | Реалізовано в details і direct child: Reporter не бачить internal text, Analyst бачить після parent decision; fixed child PoC пройшов. |
 
 ### Обґрунтування обраних правил
 
@@ -64,9 +63,9 @@ Reporter редагує Title і Description власного інциденту
 Incident не переносяться. Analyst має читання та лише `New -> Triaged`,
 а не право довільно змінювати content чи видаляти.
 
-Delete заборонено всім, оскільки явного права не опубліковано. Це не
-твердження про реалізований DELETE: маршрут поки відсутній. Майбутня
-відмова delete не замінює позитивну перевірку дозволеного owner update.
+Delete заборонено всім, оскільки явного права не опубліковано. DELETE endpoint
+існує лише для єдиної, перевірюваної HTTP-відмови; він не замінює позитивну
+перевірку дозволеного owner update.
 
 Export/audit-read flow у матрицю не додається: відповідних маршрутів або
 опублікованих прав у застосунку немає. Створювати такий flow заради
@@ -74,6 +73,15 @@ Export/audit-read flow у матрицю не додається: відпові
 Назва Administrator не є дозволом на читання журналів.
 
 ## Політика HTTP-відмов
+
+Для головної action `GET /api/incidents/{id}` обрано **404**, якщо
+authenticated Reporter не є власником запитаного інциденту. Наприклад,
+Alice з чинною cookie при зверненні до інциденту Bob має одержати ту саму
+безпечну відповідь, що й для неіснуючого коректного GUID. На відміну від
+`403`, такий контракт не підтверджує клієнтові існування чужого ресурсу.
+Це правило для non-owner **без права читати чужі ресурси**, а не заборона
+всім non-owner: Morgan/Analyst має явно надане право читання для аналізу
+та одержує `200` для наявного інциденту незалежно від ownership.
 
 1. **401 Unauthorized** - немає чинного authentication principal.
    Захищений API не повертає `302` або HTML-сторінку входу.
@@ -101,6 +109,22 @@ Export/audit-read flow у матрицю не додається: відпові
    без доступних записів: порожня дозволена множина або нульові counts.
    Owner scope застосовується в БД **до** сортування, `Take`, проєкції
    та `GroupBy`; чужі інциденти не включаються навіть у лічильники.
+   Пошук Reporter за текстом, який є лише в чужому інциденті, повертає
+   `200` з порожнім масивом, а не `404`. Severity-summary містить кількості
+   лише власних записів Reporter. Для Analyst обидві операції охоплюють
+   усі дозволені йому інциденти. Це окремі перевірки A-11.
+
+Узгодженість для рівня «Відмінно»: однакове приховування чужого ресурсу
+застосовується до details, update, delete та direct child (за власником
+parent); список, search і severity-summary не розкривають його через
+результати чи агрегати. Самого коду `404` недостатньо: потрібні серверне
+рішення доступу, однаковий безпечний response і відсутність mutation після
+відмови. Контракт не гарантує однакового часу виконання запитів.
+
+**Стан пункту 3:** політику застосовано в endpoint/query-коді. Fixed PoC
+підтвердив A-10/A-11, а [звіт](report-lab-04.md) зберігає окремі vulnerable і
+fixed докази. `404` для foreign перевіряється разом з таким самим `404` для
+missing та відсутністю mutation.
 
 ## Межі mutation та privileged action
 
@@ -150,8 +174,8 @@ Child resource - `IncidentComment`, parent - `Incident` через
   `30000000-0000-0000-0000-000000000003`, автор Morgan, `IsInternal = true`.
   Запис визначено в `DbSeeder.AliceInternalCommentId`. Його зв'язки та
   `IsInternal` перевіряє `Seed_IncludesFixedInternalCommentByMorganForAliceIncident`.
-  Наявність у БД і проходження тесту підтверджено 17.10.2026 після двох
-  локальних reset; безпечний підсумок - [початкові перевірки ЛР 4](evidence/lab04-preparation.txt).
+  Наявність у БД, endpoint і role-aware проєкцію підтверджують regression
+  tests та [fixed PoC](evidence/lab04-fixed.txt) від 18.10.2026.
 
 ## Audit denied triage
 
@@ -164,15 +188,16 @@ TraceId береться з `Activity.Current?.Id ?? httpContext.TraceIdentifier
 і збігається з traceId безпечної відповіді цього самого запиту. Подія не
 містить password, cookie, token, повного body, stack trace або тексту
 інциденту. Role/resource decision для такого audit має бути доступний
-усередині операції, а не тільки в декларативній role policy, яка не
-запускає код endpoint. План доказу - A-09; реалізації події ще немає.
+  усередині операції, а не тільки в декларативній role policy, яка не
+  запускає код endpoint. Реалізація логує подію і fixed PoC підтвердив
+  кореляцію traceId для A-09.
 
 ## Межі поточного кроку
 
-Заповнення матриці не означає виконання A-01 ... A-12. Попереду залишаються
-локальний контрольований PoC, vulnerable/fixed commits, реалізація правил,
-HTTP-тести й фактичні докази. Позитивні mutation-тести мають створювати
-власні тимчасові записи та прибирати їх, не змінюючи сталі seed-ресурси.
+Матриця підтверджена fixed PoC і 97 regression tests. Контрольований
+вразливий PoC збережено окремо, щоб показати початковий дефект. Позитивні
+mutation-тести створюють власні тимчасові записи та прибирають їх, не
+змінюючи сталі seed-ресурси.
 
 CSRF teaching debt cookie-authentication із ЛР 3 залишається:
 SameSite=Lax не є повним CSRF-захистом. Ownership і role authorization
