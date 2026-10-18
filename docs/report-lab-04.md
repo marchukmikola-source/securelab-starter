@@ -87,7 +87,9 @@ child та export/audit flows матриця містить конкретний
 `loadIncidentDetails("20000000-0000-0000-0000-000000000002")` запросив Bob.
 Клієнт відобразив `Помилка: Інцидент не знайдено` через
 `detailsElement.textContent`; рішення залишилося server-side. Обидва стани
-зафіксовано у [evidence/lab04-browser.txt](evidence/lab04-browser.txt).
+зафіксовано у [evidence/lab04-browser.txt](evidence/lab04-browser.txt). Для
+симетричної перевірки Bob побачив тільки два власні Incident і успішно відкрив
+`Невідома спроба входу`; Bob -> Alice вже зафіксовано у fixed HTTP PoC як `404`.
 
 ## Використання ШІ
 

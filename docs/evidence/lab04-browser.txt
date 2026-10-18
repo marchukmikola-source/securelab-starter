@@ -16,3 +16,10 @@ Denied state:
   written through detailsElement.textContent, with no client-side authorization decision.
 
 The browser screenshots of both states were captured during the local verification.
+
+Symmetric Bob check:
+- After Bob / Reporter signed in, the scoped list contained exactly two Bob Incident.
+- Bob opened "Невідома спроба входу" and the details block rendered its High · InProgress
+  metadata, owner "Боб Мельник", description and allowed comment.
+- Alice Incident was absent from Bob's browser list. The fixed HTTP PoC separately records
+  the exact direct request Bob -> Alice as the same safe `404` response.
