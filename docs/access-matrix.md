@@ -1,8 +1,9 @@
 # Матриця контролю доступу SecureLab для ЛР 04
 
-Дата фінального огляду: 18.10.2026. Матриця охоплює лише маршрути, що були в
-cumulative state на vulnerable commit `390bc04`. Нових endpoint-ів для ЛР 04
-не створено.
+Дата огляду: 18.10.2026. Матриця охоплює cumulative state ЛР 04 і окремо
+зафіксований у п. 9 fixed contract для спільної privileged action `triage`.
+Її контрольований vulnerable endpoint з п. 10 існує лише в приватній локальній
+гілці та не є частиною цього безпечного стану.
 
 ## Контекст рішення
 
@@ -26,7 +27,7 @@ cumulative state на vulnerable commit `390bc04`. Нових endpoint-ів дл
 | Створення: `POST /api/incidents` | Успадкований ЛР 03 | `401`, без redirect | `201`, owner визначає сервер | `201`, owner визначає сервер | `403` | Новий owner визначається сервером | Існуючий маршрут отримав явну рольову перевірку; Administrator deny покрито regression test. |
 | Зміна content: `PUT /api/incidents/{id}` | Добрий | `401`, без redirect | owner `204`; чужий `404`; лише title/description | `403`, навіть для доступного Incident | `403` | Так для Reporter | Centralized resource decision перед validation, tracked mutation і `SaveChanges`. Fixed PoC: foreign `404` без зміни Bob; owner update та `400` для protected fields пройшли. |
 | Видалення Incident | Добрий | deny; delete HTTP-flow відсутній | deny; права delete не надано | deny; права delete не надано | deny; права delete не надано | Було б так для видимості parent | У cumulative state немає DELETE endpoint; за правилом «нових endpoint-ів не створюйте» операцію не додано. Це явний deny, а не неперевірений allow. |
-| Зміна severity/status | Добрий | `401` на existing `PUT` | deny: `status`/`severity` — protected fields, `400`; чужий Incident — `404` | deny, `403` для update | deny, `403` для update | Так для foreign concealment Reporter | Окремого transition endpoint немає. Existing update DTO приймає тільки title/description; `status` і `severity` відхиляються до mutation. |
+| Privileged transition: `POST /api/incidents/{id}/triage` | Добрий | `401`, без redirect | owner `403`; чужий Incident `404`; owner не має винятку | `204` лише для `New → Triaged`; інший status `409` | `403` | Лише для concealment чужого ресурсу від Reporter; ownership не надає transition | Fixed policy: тільки Analyst і лише transition `New → Triaged`. Після deny — структурована audit-подія без title, body чи підказки про існування чужого ресурсу. У private vulnerable commit п. 10 цю policy навмисно пропущено для PoC. |
 | Internal comment | Добрий | `401` через details | owner details `200`, internal comment не включається | дозволений details `200`, internal comment включається | `403` разом з details | Так для parent read; internal rule не залежить від автора comment | `IncidentComment` — child resource. У cumulative state його єдиний HTTP-шлях — проєкція details; direct child identifier endpoint не створювався. Регресійний тест перевіряє обидві проєкції. |
 | Export/audit | Відмінний лише якщо flow існує | deny; HTTP-flow відсутній | deny; права не надано | deny; права не надано | deny; права не надано | Не застосовується без ресурсу | Export/audit endpoint у cumulative state відсутній, тому не вигадувався для ЛР 04. |
 
@@ -55,10 +56,27 @@ Incident міг бути розкритий через назву у search аб
 
 `PUT` приймає лише `title` і `description`; id, owner, severity, status та
 службовий час визначає сервер. Рішення доступу виконується до будь-якої зміни
-tracked entity. Окремі delete, triage, direct-child та export endpoints у
-vulnerable state були відсутні; за вимогою ЛР 04 їх не створено. У матриці
-для них зафіксовано явний deny або відсутність HTTP-flow, щоб їх не видавали
-за реалізоване authorization coverage.
+tracked entity. Окремі delete, direct-child та export endpoints у vulnerable
+state були відсутні; за вимогою ЛР 04 їх не створено. У матриці для них
+зафіксовано явний deny або відсутність HTTP-flow, щоб їх не видавали за
+реалізоване authorization coverage.
+
+## Privileged action: triage (п. 9)
+
+Для `POST /api/incidents/{id}/triage` policy формується сервером із verified
+principal і стану завантаженого ресурсу. Право має тільки `Analyst`; додатковий
+context — поточний `Incident.Status`, який має бути `New`. Модель не містить
+tenant, а ownership не є підставою для переходу: власний Reporter так само
+одержує `403`. Інший Reporter одержує `404`, щоб не підтверджувати існування
+чужого Incident. Administrator не набуває цього права автоматично і одержує
+`403`. Для Analyst на доступному Incident із status, відмінним від `New`,
+повертається `409 Conflict`, бо право є, але перехід недійсний.
+
+Після deny сервер має залишати audit event `incident.triage.denied` з
+`operation=Incident.Triage`, verified `actorUserId`, `incidentId`, рішенням і
+UTC-часом. До нього не потрапляють title, description, JSON-body, підставлена
+role та розрізнення чужого й відсутнього ресурсу в зовнішній відповіді. Це
+дає достатній слід для розслідування без нового розкриття даних.
 
 Fixed результат, vulnerable PoC і hashes двох станів наведені у
 [звіті](report-lab-04.md).
