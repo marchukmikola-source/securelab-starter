@@ -79,8 +79,9 @@ public IncidentAccessDecision Read(IncidentAccessContext context, Guid ownerUser
 ресурсу; дефектом була відсутність server-side resource decision.
 
 Тому за однакових методу, cookie та заголовків Alice могла змінити тільки GUID
-і прочитати або змінити Incident Bob. [HTTP-доказ](evidence/lab04-poc.txt)
-зберігає фактичні результати: anonymous details `200`, Alice -> Bob details
+і прочитати або змінити Incident Bob. HTTP-доказ зберігається лише у приватній
+локальній гілці `lab/4-idor-vulnerable` за цим commit у
+`docs/evidence/lab04-poc.txt`; він містить фактичні результати: anonymous details `200`, Alice -> Bob details
 `200`, Alice -> Bob update `204`, `foreign_content_changed=true`. Mutation
 відбувалася тільки в ізольованій тимчасовій БД, а первісний content Bob був
 відновлений.
