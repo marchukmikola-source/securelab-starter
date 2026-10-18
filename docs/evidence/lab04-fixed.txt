@@ -3,7 +3,7 @@ API: http://localhost:5084; isolated synthetic PostgreSQL database.
 Credentials and cookie values omitted.
 
 Build: 0 warnings, 0 errors.
-Tests: 96 passed, 0 failed, 0 skipped.
+Tests: 97 passed, 0 failed, 0 skipped.
 Seed before PoC: users=4 incidents=5 comments=3.
 expect=fixed
 

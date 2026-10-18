@@ -25,14 +25,18 @@ cumulative state на vulnerable commit `390bc04`. Нових endpoint-ів дл
 | Деталі: `GET /api/incidents/{id}` | Достатній, головна protected action | `401`, без redirect | owner `200`; чужий `404`; internal comments не повертаються | `200` для наявного Incident, internal comments повертаються | `403` | Так для Reporter | Centralized resource decision. Fixed PoC: Alice own `200`, foreign/missing однакові `404`, Morgan `200`. |
 | Створення: `POST /api/incidents` | Успадкований ЛР 03 | `401`, без redirect | `201`, owner визначає сервер | `201`, owner визначає сервер | `403` | Новий owner визначається сервером | Існуючий маршрут отримав явну рольову перевірку; Administrator deny покрито regression test. |
 | Зміна content: `PUT /api/incidents/{id}` | Добрий | `401`, без redirect | owner `204`; чужий `404`; лише title/description | `403`, навіть для доступного Incident | `403` | Так для Reporter | Centralized resource decision перед validation, tracked mutation і `SaveChanges`. Fixed PoC: foreign `404` без зміни Bob; owner update та `400` для protected fields пройшли. |
-| Comments у details response | Добрий | Відповідь details недоступна | Власний details без `IsInternal` comments | Дозволений details містить internal comments | `403` разом з details | Так для доступу до parent | Role-aware проєкція в наявному details route; owner і Analyst поведінка покрита regression test. |
+| Видалення Incident | Добрий | deny; delete HTTP-flow відсутній | deny; права delete не надано | deny; права delete не надано | deny; права delete не надано | Було б так для видимості parent | У cumulative state немає DELETE endpoint; за правилом «нових endpoint-ів не створюйте» операцію не додано. Це явний deny, а не неперевірений allow. |
+| Зміна severity/status | Добрий | `401` на existing `PUT` | deny: `status`/`severity` — protected fields, `400`; чужий Incident — `404` | deny, `403` для update | deny, `403` для update | Так для foreign concealment Reporter | Окремого transition endpoint немає. Existing update DTO приймає тільки title/description; `status` і `severity` відхиляються до mutation. |
+| Internal comment | Добрий | `401` через details | owner details `200`, internal comment не включається | дозволений details `200`, internal comment включається | `403` разом з details | Так для parent read; internal rule не залежить від автора comment | `IncidentComment` — child resource. У cumulative state його єдиний HTTP-шлях — проєкція details; direct child identifier endpoint не створювався. Регресійний тест перевіряє обидві проєкції. |
+| Export/audit | Відмінний лише якщо flow існує | deny; HTTP-flow відсутній | deny; права не надано | deny; права не надано | deny; права не надано | Не застосовується без ресурсу | Export/audit endpoint у cumulative state відсутній, тому не вигадувався для ЛР 04. |
 
 ## HTTP-відмови
 
 1. `401 Unauthorized` — немає authenticated principal; API не повертає `302`.
 2. `404 Not Found` — authenticated Reporter звертається до чужого Incident
-   або до відсутнього коректного GUID. Обидві гілки використовують один helper
-   і мають однакове тіло після вилучення `traceId` / `requestId`.
+   або до відсутнього коректного GUID у details чи existing update. Обидві
+   гілки використовують один helper і мають однакове тіло після вилучення
+   `traceId` / `requestId`.
 3. `403 Forbidden` — ресурс доступний, але operation не надано цій ролі:
    Analyst update або Administrator читання.
 4. `400 Bad Request` — update містить невідомі/protected JSON-поля, наприклад
@@ -51,9 +55,10 @@ Incident міг бути розкритий через назву у search аб
 
 `PUT` приймає лише `title` і `description`; id, owner, severity, status та
 службовий час визначає сервер. Рішення доступу виконується до будь-якої зміни
-tracked entity. Відсутні у vulnerable state delete, triage та direct child
-endpoint не були додані в ЛР 04; їх не можна зараховувати як authorization
-coverage наявних маршрутів.
+tracked entity. Окремі delete, triage, direct-child та export endpoints у
+vulnerable state були відсутні; за вимогою ЛР 04 їх не створено. У матриці
+для них зафіксовано явний deny або відсутність HTTP-flow, щоб їх не видавали
+за реалізоване authorization coverage.
 
 Fixed результат, vulnerable PoC і hashes двох станів наведені у
-[звітi](report-lab-04.md).
+[звіті](report-lab-04.md).

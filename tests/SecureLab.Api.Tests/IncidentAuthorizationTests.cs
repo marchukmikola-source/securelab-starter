@@ -70,6 +70,43 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
     }
 
     [Fact]
+    public async Task ExistingIncidentEndpoints_RequireAuthenticationAndDenyAdministrator()
+    {
+        using var anonymous = factory.CreateClient();
+        foreach (var path in new[]
+                 {
+                     "/api/incidents",
+                     "/api/incidents/severity-summary",
+                     "/api/incidents/search?q=incident"
+                 })
+        {
+            using var response = await anonymous.GetAsync(path);
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+            Assert.Null(response.Headers.Location);
+        }
+
+        using var admin = await LoginAsync("admin");
+        foreach (var path in new[]
+                 {
+                     "/api/incidents",
+                     "/api/incidents/severity-summary",
+                     "/api/incidents/search?q=incident"
+                 })
+        {
+            using var response = await admin.GetAsync(path);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        }
+        using var details = await admin.GetAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, details.StatusCode);
+        using var update = await admin.PutAsJsonAsync($"/api/incidents/{DbSeeder.AliceIncidentId}", new
+        {
+            title = "Administrator must not update an Incident",
+            description = "A valid request body cannot grant an unpublished Administrator right."
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, update.StatusCode);
+    }
+
+    [Fact]
     public async Task Update_EnforcesTheSameOwnerDecisionAsDetails()
     {
         using var alice = await LoginAsync("alice");
@@ -104,12 +141,14 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
             Assert.Equal(HttpStatusCode.Forbidden, analystDenied.StatusCode);
             using var forged = await alice.PutAsJsonAsync($"/api/incidents/{id}", new
             {
-                valid.title, valid.description, ownerUserId = DbSeeder.BobId, status = "Closed"
+                valid.title, valid.description, ownerUserId = DbSeeder.BobId,
+                status = "Closed", severity = "Critical"
             });
             Assert.Equal(HttpStatusCode.BadRequest, forged.StatusCode);
             var afterForged = JsonNode.Parse(await alice.GetStringAsync($"/api/incidents/{id}"))!.AsObject();
             Assert.Equal(valid.title, afterForged["title"]!.GetValue<string>());
             Assert.Equal("New", afterForged["status"]!.GetValue<string>());
+            Assert.Equal("Low", afterForged["severity"]!.GetValue<string>());
         }
         finally
         {

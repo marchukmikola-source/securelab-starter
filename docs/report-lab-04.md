@@ -76,7 +76,9 @@ password, cookie, token або `Set-Cookie` values.
 [evidence/lab04-fixed.txt](evidence/lab04-fixed.txt). Regression tests у
 `tests/SecureLab.Api.Tests/IncidentAuthorizationTests.cs` перевіряють details,
 scope колекцій/агрегатів, update, protected fields, comments і deny
-Administrator.
+Administrator. Для відсутніх у cumulative state delete, transition, direct
+child та export/audit flows матриця містить конкретний deny/відсутність маршруту;
+їх не створено лише для штучного розширення ЛР 04.
 
 ## Використання ШІ
 
