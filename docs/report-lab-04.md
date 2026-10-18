@@ -1,6 +1,6 @@
 # ЛР 04: контроль доступу до Incident
 
-Дата перевірки: 18.10.2026. Виконано пункти 2–10: матрицю доступу,
+Дата перевірки: 18.10.2026. Виконано пункти 2–13: матрицю доступу,
 відтворювані vulnerable states, серверне виправлення для read/update,
 regression tests, HTTP PoC та контрольований PoC privileged action `triage`.
 
@@ -125,6 +125,45 @@ status, але не виконує server-side role/policy decision для `Inci
 git switch lab/4-triage-vulnerable
 .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -TriagePoC
 git switch lab/4-authorization
+```
+
+## Пункти 11–12: fixed triage policy та audit deny
+
+Fixed commit: `27b2ec6e94fbae95c2683ad46400f912570b696b`
+(`fix(authz): enforce incident triage policy`). Він не містить vulnerable
+поведінки з п. 10. `TriageAsync` завантажує tracked Incident, викликає
+`IncidentAccessRules.Triage` із verified principal і `OwnerUserId` ресурсу,
+записує audit при deny, лише тоді перевіряє `Status == New`, сам призначає
+`Triaged` і викликає `SaveChangesAsync`. Endpoint не має DTO для role, owner
+або status: ці JSON-поля не є input для authorization чи transition.
+
+Audit пишеться через structured logger `SecureLab.Api.Audit.IncidentTriage`:
+`EventName=incident.triage.denied`, `Operation=Incident.Triage`, verified
+`ActorUserId`, `IncidentId`, `Result=Denied`, server-generated
+`OccurredAtUtc` та request `TraceId`. Пароль, cookie, token, body, title,
+description і stack trace не записуються. Реальний HTTP-доказ містить `403`,
+незмінний `New`, `204` Analyst, `409` повторної transition та рівний trace id
+у response й audit: [lab04-triage-fixed.txt](evidence/lab04-triage-fixed.txt).
+
+## Пункт 13: authorization test matrix
+
+Новий [IncidentTriageAuthorizationTests.cs](../tests/SecureLab.Api.Tests/IncidentTriageAuthorizationTests.cs)
+створює temporary Incident, працює через login/cookie власної Identity
+реалізації та прибирає Incident і його history у `finally`.
+
+| Рядок | Автоматична перевірка | Результат |
+|---|---|---|
+| A-06 | Reporter triage з підставленими `role`, `ownerUserId`, `status`, `isTransitionAllowed` | `403`; повторні details показують `New` |
+| A-06R | Інший Reporter triage | `404`; owner повторно читає `New` |
+| A-06A | Administrator triage | `403`; owner повторно читає `New` |
+| A-07 | Analyst triage | `204`; details показують `Triaged`; history містить `New → Triaged` і verified Analyst |
+| A-07S | Analyst повторює triage | `409`; history не має нового запису |
+| Audit deny | Reporter `403` | structured event має allowlist полів і `TraceId`, рівний Problem Details `traceId` |
+
+Повний відтворюваний fixed прогін з кореня проєкту:
+
+```powershell
+.\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -TriageFixedPoC
 ```
 
 ## Використання ШІ
