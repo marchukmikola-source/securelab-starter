@@ -2,7 +2,8 @@ param(
     [string]$Python = 'python',
     [string]$Container = 'secure-lab-postgres-1',
     [ValidateRange(1024, 65535)][int]$Port = 5080,
-    [ValidateSet('vulnerable', 'fixed')][string]$ExpectedState = 'vulnerable'
+    [ValidateSet('vulnerable', 'fixed')][string]$ExpectedState = 'vulnerable',
+    [switch]$TriagePoC
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,6 +78,17 @@ try {
     Assert-Exit 'Environment check'
     & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation
     Assert-Exit 'HTTP PoC'
+    if ($TriagePoC) {
+        $triageOutput = & $Python -X utf8 scripts/lab04_triage_access.py --host $apiHost 2>&1
+        $triageExit = $LASTEXITCODE
+        @(
+            'SecureLab LR04 point 10: controlled local vertical-privilege PoC.'
+            "API: $apiHost; isolated synthetic PostgreSQL database."
+            'Credentials, cookies and raw response headers are omitted.'
+            ''
+        ) + $triageOutput | Set-Content -Encoding utf8 (Join-Path $repo 'docs\evidence\lab04-triage-vulnerable.txt')
+        if ($triageExit -ne 0) { throw 'Triage vertical-privilege PoC failed; inspect the local result.' }
+    }
 } finally {
     if ($null -ne $api -and -not $api.HasExited) {
         # Kill only the process tree created above, including dotnet run's child API.

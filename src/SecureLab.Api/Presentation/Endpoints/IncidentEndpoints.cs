@@ -34,6 +34,11 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+        group.MapPost("/{id:guid}/triage", TriageAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return group;
     }
 
@@ -100,6 +105,39 @@ public static class IncidentEndpoints
         incident.Title = title;
         incident.Description = description;
         incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    // Deliberately vulnerable private learning state for LR04 point 10.
+    // The upcoming fixed state must decide Incident.Triage from the verified role
+    // and this resource before this mutation. This version only checks transition state.
+    private static async Task<IResult> TriageAsync(
+        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
+        SecureLabDbContext db, CancellationToken cancellationToken)
+    {
+        var actor = accessRules.From(httpContext.User);
+        var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null) return NotFound();
+        if (incident.Status != IncidentStatus.New)
+        {
+            return Results.Problem(title: "Недійсний перехід статусу",
+                detail: "Перехід до Triaged можливий лише зі status New.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        incident.Status = IncidentStatus.Triaged;
+        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        db.IncidentStatusHistory.Add(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incident.Id,
+            ChangedByUserId = actor.SubjectId,
+            OldStatus = IncidentStatus.New,
+            NewStatus = IncidentStatus.Triaged,
+            Note = "Triage transition.",
+            CreatedAtUtc = incident.UpdatedAtUtc
+        });
         await db.SaveChangesAsync(cancellationToken);
         return Results.NoContent();
     }
