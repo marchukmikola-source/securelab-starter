@@ -1,8 +1,8 @@
 # ЛР 04: контроль доступу до Incident
 
-Дата фінальної перевірки: 18.10.2026. Виконано пункти 2–6 для існуючих
-маршрутів cumulative state: матрицю доступу, відтворюваний vulnerable state,
-серверне виправлення, regression tests і повторний HTTP PoC.
+Дата перевірки: 18.10.2026. Виконано пункти 2–10: матрицю доступу,
+відтворювані vulnerable states, серверне виправлення для read/update,
+regression tests, HTTP PoC та контрольований PoC privileged action `triage`.
 
 ## Пункти 2–3: контракт доступу
 
@@ -90,6 +90,40 @@ child та export/audit flows матриця містить конкретний
 зафіксовано у [evidence/lab04-browser.txt](evidence/lab04-browser.txt). Для
 симетричної перевірки Bob побачив тільки два власні Incident і успішно відкрив
 `Невідома спроба входу`; Bob -> Alice вже зафіксовано у fixed HTTP PoC як `404`.
+
+## Пункти 9–10: privileged action і вертикальне підвищення
+
+Цільовий contract для `POST /api/incidents/{id}/triage` описано в
+[матриці](access-matrix.md): лише Analyst може виконати `New → Triaged`.
+Ownership не є винятком для Reporter; owner Reporter має одержати `403`,
+foreign Reporter — concealment `404`, Administrator — `403`, а Analyst для
+status, відмінного від `New`, — `409`. Після deny fixed state має записувати
+безпечну структуровану audit event `incident.triage.denied` тільки з verified
+actor, operation, incident id, рішенням і UTC-часом.
+
+Контрольований vulnerable commit п. 10:
+`5a1d657e86ec50c89630c7a60a52a0d9de057abd`
+(`test(lab04): reproduce triage privilege escalation`). Він існує тільки у
+локальній private гілці `lab/4-triage-vulnerable`, не має тегу і не є
+deployment state.
+
+У його ізольованому HTTP PoC Alice спочатку виконала дозволений own-content
+`PUT` із `204`. Потім цей самий verified Reporter виконав `POST .../triage`
+для власного Incident у status `New`, одержав `204`, а наступні details
+підтвердили `status=Triaged`. Повтор на іншому власному `New` Incident із JSON
+`{"role":"Administrator"}` також повернув `204`. Це не робить body-role
+джерелом права: порожній request тієї самої дії вже виконав transition.
+Фактична першопричина — endpoint завантажує Incident і перевіряє тільки його
+status, але не виконує server-side role/policy decision для `Incident.Triage`
+до mutation. Повний безпечний доказ наведено у
+[lab04-triage-vulnerable.txt](evidence/lab04-triage-vulnerable.txt).
+
+Відтворення з кореня репозиторію запускає старі fixed checks і цей окремий
+PoC лише в новій тимчасовій БД:
+
+```powershell
+.\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -TriagePoC
+```
 
 ## Використання ШІ
 
