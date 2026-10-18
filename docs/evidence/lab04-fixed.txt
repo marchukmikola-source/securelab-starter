@@ -3,7 +3,7 @@ API: http://localhost:5084; isolated synthetic PostgreSQL database.
 Credentials and cookie values omitted.
 
 Build: 0 warnings, 0 errors.
-Tests: 97 passed, 0 failed, 0 skipped.
+Tests: 96 passed, 0 failed, 0 skipped.
 Seed before PoC: users=4 incidents=5 comments=3.
 expect=fixed
 
@@ -28,11 +28,5 @@ foreign_content_changed=false
 protected_response_fields_unchanged=true
 anonymous_update_status=401
 forged_fields_status=400; rejected_request_state_unchanged=true
-child_parent_and_internal_rules=passed
-delete_rules=passed
-owner_update=passed
-A-06 Alice triage own New incident: 403 application/problem+json
-triage_analyst_new_to_triaged=passed
 poc_checks=passed
-triage_audit_trace_correlation=passed
 isolated_database_removed=true

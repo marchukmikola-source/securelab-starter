@@ -1,62 +1,65 @@
 # ЛР 04: контроль доступу до Incident
 
-Дата фінальної перевірки: 18.10.2026. Виконано пункти 2–6 для рівня
-«Відмінно»: матрицю доступу, відтворюваний вразливий стан, серверне
-виправлення, регресійні тести та повторний HTTP PoC.
+Дата фінальної перевірки: 18.10.2026. Виконано пункти 2–6 для існуючих
+маршрутів cumulative state: матрицю доступу, відтворюваний vulnerable state,
+серверне виправлення, regression tests і повторний HTTP PoC.
 
 ## Пункти 2–3: контракт доступу
 
-[Матриця доступу](access-matrix.md) встановлює такі правила: Reporter читає
-й змінює лише власні Incident; Analyst читає всі Incident для аналізу, бачить
-internal comments і переводить лише `New -> Triaged`; Administrator не має
-автоматичних прав. Анонімний запит отримує `401`, Reporter до чужого ресурсу
-— таку саму безпечну `404`, як і для відсутнього id, а доступний ресурс із
-забороненою операцією дає `403`.
+[Матриця доступу](access-matrix.md) визначає окремі права Reporter, Analyst
+та Administrator. Reporter читає й оновлює лише власний Incident; Analyst
+читає всі Incident для аналізу; Administrator не отримує автоматичних прав.
+Для authenticated Reporter чужий ресурс і відсутній GUID повертають однакову
+безпечну `404`; анонімний запит — `401`; дозволений ресурс із відсутнім
+правом на операцію — `403`.
 
-## Вразливий і виправлений стани
+## Пункт 4–5: контрольований vulnerable state
 
 - Базовий commit: `73901c423e7dc16ef0b19d9f3cbe96e1c710b856`.
-- Вразливий commit: `390bc0421e33d8815444cb0c37d5398b54d5d6c8`
+- Vulnerable commit: `390bc0421e33d8815444cb0c37d5398b54d5d6c8`
   (`Reproduce controlled incident access vulnerability`).
-- Виправлений стан цього звіту буде зафіксований окремим commit і тегом
-  `v0.4.0`.
 
-У вразливому стані details не вимагав входу, а `PUT` перевіряв лише login.
-Тому Alice з незмінним authenticated client могла прочитати й змінити Incident
-Bob, змінивши тільки GUID у URL. [Початковий HTTP-доказ](evidence/lab04-poc.txt)
+У вразливому стані details шукав Incident тільки за id і не вимагав входу.
+`PUT` вимагав login, але завантажував entity лише за id і не порівнював
+`OwnerUserId` із verified principal. URL-id був звичайним способом вибору
+ресурсу; дефектом була відсутність server-side resource decision.
+
+Тому за однакових методу, cookie та заголовків Alice могла змінити тільки GUID
+і прочитати або змінити Incident Bob. [HTTP-доказ](evidence/lab04-poc.txt)
 зберігає фактичні результати: anonymous details `200`, Alice -> Bob details
-`200`, Alice -> Bob update `204` і `foreign_content_changed=true`. Після
-mutation початковий content Bob був відновлений у тимчасовій БД.
+`200`, Alice -> Bob update `204`, `foreign_content_changed=true`. Mutation
+відбувалася тільки в ізольованій тимчасовій БД, а первісний content Bob був
+відновлений.
 
-## Реалізоване виправлення
+Vulnerable commit лишається лише у приватній навчальній історії. Він не
+використовується для deployment і не має фінального тегу.
 
-`IncidentAccessRules` приймає рішення з verified subject і role claims,
-операції та завантаженого сервером ресурсу. Endpoint не довіряє id, owner,
-role чи status із request body. Фільтр ownership застосовується до списку,
-пошуку та severity-summary ще до сортування, проєкції й агрегації.
+## Пункт 6: серверне виправлення
 
-Додано захищені маршрути details, update, delete-deny, triage та direct child
-comment. Update приймає тільки title/description і відхиляє protected JSON
-fields із `400`. Triage доступний тільки Analyst для поточного `New`; відмова
-Reporter фіксує structured `authorization.denied` з тим самим traceId, що й
-Problem Details response. UI не змінювався.
+`IncidentAccessRules` є централізованою точкою прийняття рішення для details
+і update. Вона приймає verified subject та role claims, а endpoint передає
+owner ресурсу, завантаженого з БД. Тому request body, browser client і id у
+URL не можуть надати право доступу.
+
+Для list, search та severity-summary scope з principal застосовується в SQL
+до сортування, `Take`, проєкції і `GroupBy`. Update приймає вузький DTO лише
+з `title` і `description`; protected JSON-поля відхиляються з `400` до будь-
+якої mutation. Comments як частина наявної details response role-aware:
+Reporter не бачить internal comments, Analyst бачить їх після дозволеного
+parent details. Нових endpoint-ів у fixed state не додано.
 
 ## Фінальна перевірка
 
-Команда для повторення з кореня проєкту в PowerShell 7 (Docker має працювати):
+Повторити з кореня проєкту в PowerShell 7, коли Docker працює:
 
 ```powershell
 .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -Python python
 ```
 
-Скрипт створює лише власну БД `securelab_lr04_poc_<random>`, запускає API на
-окремому порту, прибирає створений API й тимчасову БД та відновлює змінні
-оточення. Пароль існує лише в пам'яті процесу; у доказах немає значень
-password, cookie, token або `Set-Cookie`.
-
-Фактичний запуск 18.10.2026: build — **0 warnings, 0 errors**; тестів —
-**97 passed, 0 failed, 0 skipped**. Повний безпечний витяг зберігається у
-[evidence/lab04-fixed.txt](evidence/lab04-fixed.txt).
+Скрипт створює тільки власну БД `securelab_lr04_poc_<random>`, запускає API
+на окремому порту, зупиняє створений API, видаляє тимчасову БД та відновлює
+змінні оточення. Пароль існує лише в пам'яті процесу; докази не містять
+password, cookie, token або `Set-Cookie` values.
 
 | Перевірка | Результат fixed PoC |
 |---|---|
@@ -67,12 +70,13 @@ password, cookie, token або `Set-Cookie`.
 | A-04 Alice update Bob | `404`; content Bob не змінився |
 | A-05 / A-11 list, search, summary Reporter | лише власна множина |
 | A-08b protected fields update | `400`, стан не змінився |
-| A-12 direct child/internal | parent та internal rules пройдені |
-| A-06 / A-07 triage | Reporter `403`; Analyst `New -> Triaged` пройшов |
-| A-09 audit deny | traceId відповіді збігається з `authorization.denied` |
+| Details comments | Reporter не бачить internal, Analyst бачить |
 
-`tests/SecureLab.Api.Tests/IncidentAuthorizationTests.cs` додає регресійне
-покриття для цих рольових, ownership, mutation, child і audit сценаріїв.
+Реальний ізольований прогін після фінального виправлення наведено у
+[evidence/lab04-fixed.txt](evidence/lab04-fixed.txt). Regression tests у
+`tests/SecureLab.Api.Tests/IncidentAuthorizationTests.cs` перевіряють details,
+scope колекцій/агрегатів, update, protected fields, comments і deny
+Administrator.
 
 ## Використання ШІ
 

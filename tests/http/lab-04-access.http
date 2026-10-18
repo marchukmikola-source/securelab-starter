@@ -1,13 +1,11 @@
 # ЛР 04: ручна перевірка fixed access contract у VS Code REST Client.
-# Для повного ізольованого PoC (включно з temporary New -> Triaged):
+# Для повного ізольованого PoC:
 # .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -Python python
 # Пароль береться тільки з оточення процесу. Не зберігайте password/cookie у файлі чи звіті.
 @host = http://localhost:5080
 @aliceId = 20000000-0000-0000-0000-000000000001
 @bobId = 20000000-0000-0000-0000-000000000002
 @missingId = 20000000-0000-0000-0000-ffffffffffff
-@bobCommentId = 30000000-0000-0000-0000-000000000002
-@aliceInternalCommentId = 30000000-0000-0000-0000-000000000003
 
 ### Alice login: 204
 POST {{host}}/api/auth/login
@@ -52,14 +50,6 @@ Content-Type: application/json
   "description": "Контрольована навчальна спроба зміни чужого інциденту для PoC ЛР 4."
 }
 
-### A-12: internal comment власного parent не доступний Reporter: 403
-GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
-Accept: application/json
-
-### A-12: regular child чужого parent приховано від Reporter: 404
-GET {{host}}/api/incident-comments/{{bobCommentId}}
-Accept: application/json
-
 ### Morgan/Analyst login: 204
 POST {{host}}/api/auth/login
 Content-Type: application/json
@@ -70,10 +60,6 @@ Content-Type: application/json
 GET {{host}}/api/incidents/{{aliceId}}
 Accept: application/json
 
-### A-12: Analyst читає internal child після parent decision: 200
-GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
-Accept: application/json
-
 ### Logout: 204
 POST {{host}}/api/auth/logout
 
@@ -81,5 +67,5 @@ POST {{host}}/api/auth/logout
 GET {{host}}/api/incidents/{{bobId}}
 Accept: application/json
 
-# Delete, owner update, protected fields і triage не запускайте на сталих seed-даних
-# вручну: автоматичний fixed PoC створює й прибирає власний temporary Incident.
+# Owner update і protected fields не запускайте на сталих seed-даних вручну:
+# автоматичний fixed PoC виконує контрольований сценарій у тимчасовій БД.

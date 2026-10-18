@@ -121,21 +121,7 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
     public Task<IncidentAccessTarget?> GetAccessTargetAsync(Guid id, CancellationToken cancellationToken) =>
         dbContext.Incidents.AsNoTracking()
             .Where(incident => incident.Id == id)
-            .Select(incident => new IncidentAccessTarget(incident.OwnerUserId, incident.Status))
-            .SingleOrDefaultAsync(cancellationToken);
-
-    public Task<IncidentCommentAccessTarget?> GetCommentAccessTargetAsync(
-        Guid id, CancellationToken cancellationToken) =>
-        dbContext.IncidentComments.AsNoTracking()
-            .Where(comment => comment.Id == id)
-            .Select(comment => new IncidentCommentAccessTarget(
-                comment.Incident.OwnerUserId,
-                comment.IsInternal,
-                new IncidentCommentResponse(
-                    comment.Id,
-                    comment.Author.DisplayName,
-                    comment.Text,
-                    comment.CreatedAtUtc)))
+            .Select(incident => new IncidentAccessTarget(incident.OwnerUserId))
             .SingleOrDefaultAsync(cancellationToken);
 
     private static int GetSeverityRank(string severity) => severity switch
@@ -148,9 +134,4 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
     };
 }
 
-public sealed record IncidentAccessTarget(Guid OwnerUserId, IncidentStatus Status);
-
-public sealed record IncidentCommentAccessTarget(
-    Guid IncidentOwnerUserId,
-    bool IsInternal,
-    IncidentCommentResponse Response);
+public sealed record IncidentAccessTarget(Guid OwnerUserId);

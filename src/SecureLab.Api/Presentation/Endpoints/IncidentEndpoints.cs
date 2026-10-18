@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,23 +34,6 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
-        group.MapDelete("/{id:guid}", DeleteAsync)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
-        group.MapPost("/{id:guid}/triage", TriageAsync)
-            .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
-        routes.MapGet("/api/incident-comments/{id:guid}", GetCommentAsync)
-            .RequireAuthorization()
-            .Produces<IncidentCommentResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden)
-            .ProducesProblem(StatusCodes.Status404NotFound);
-
         return group;
     }
 
@@ -122,57 +104,6 @@ public static class IncidentEndpoints
         return Results.NoContent();
     }
 
-    private static async Task<IResult> DeleteAsync(
-        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
-        IncidentQueries queries, CancellationToken cancellationToken)
-    {
-        var context = accessRules.From(httpContext.User);
-        if (!context.IsReporter) return Forbidden();
-        var target = await queries.GetAccessTargetAsync(id, cancellationToken);
-        if (target is null) return NotFound();
-        return Denied(accessRules.Delete(context, target.OwnerUserId));
-    }
-
-    private static async Task<IResult> TriageAsync(
-        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
-        SecureLabDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
-    {
-        var context = accessRules.From(httpContext.User);
-        if (!context.IsAnalyst && !context.IsReporter) return Forbidden();
-        var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (incident is null) return NotFound();
-        var decision = accessRules.Triage(context, incident.OwnerUserId, incident.Status);
-        if (decision != IncidentAccessDecision.Allow)
-        {
-            LogDeniedTriage(loggerFactory, httpContext, context.SubjectId, id);
-            return Denied(decision);
-        }
-
-        var oldStatus = incident.Status;
-        incident.Status = IncidentStatus.Triaged;
-        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
-        db.IncidentStatusHistory.Add(new IncidentStatusHistory
-        {
-            Id = Guid.NewGuid(), IncidentId = incident.Id, ChangedByUserId = context.SubjectId,
-            OldStatus = oldStatus, NewStatus = IncidentStatus.Triaged,
-            Note = "Triage completed.", CreatedAtUtc = incident.UpdatedAtUtc
-        });
-        await db.SaveChangesAsync(cancellationToken);
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> GetCommentAsync(
-        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
-        IncidentQueries queries, CancellationToken cancellationToken)
-    {
-        var context = accessRules.From(httpContext.User);
-        if (accessRules.ReadScope(context) == IncidentReadScope.Forbidden) return Forbidden();
-        var target = await queries.GetCommentAccessTargetAsync(id, cancellationToken);
-        if (target is null) return NotFound();
-        var decision = accessRules.ReadComment(context, target.IncidentOwnerUserId, target.IsInternal);
-        return decision == IncidentAccessDecision.Allow ? Results.Ok(target.Response) : Denied(decision);
-    }
-
     private static Dictionary<string, string[]> ValidateContent(
         UpdateIncidentContentRequest request, IncidentSeverity severity)
     {
@@ -189,15 +120,6 @@ public static class IncidentEndpoints
         if (errors.Count == 0 && title == description)
             errors["description"] = ["Опис інциденту не може дублювати його заголовок."];
         return errors;
-    }
-
-    private static void LogDeniedTriage(
-        ILoggerFactory loggerFactory, HttpContext httpContext, Guid subjectId, Guid resourceId)
-    {
-        var traceId = Activity.Current?.Id ?? httpContext.TraceIdentifier;
-        loggerFactory.CreateLogger("SecureLab.Api.Authorization").LogWarning(
-            "authorization.denied {SubjectId} {Action} {ResourceId} {Result} {OccurredAtUtc} {TraceId}",
-            subjectId, "Incident.Triage", resourceId, "denied", DateTimeOffset.UtcNow, traceId);
     }
 
     private static IResult Denied(IncidentAccessDecision decision) =>

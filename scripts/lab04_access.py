@@ -8,7 +8,6 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-import uuid
 
 
 ALICE = "20000000-0000-0000-0000-000000000001"
@@ -177,53 +176,6 @@ def run(args, password):
                 require(details(bob, BOB, 200, "Mutation: Bob restores content")[2] == before,
                         "Original response content was not restored")
                 print("original_content_restored=true")
-
-    if not vulnerable:
-        # A-12: direct child access uses the same parent-resource decision.
-        require(alice.request("/api/incident-comments/30000000-0000-0000-0000-000000000001")[0] == 200,
-                "Reporter could not read a regular comment on own incident")
-        require(alice.request("/api/incident-comments/30000000-0000-0000-0000-000000000002")[0] == 404,
-                "Reporter could discover a comment on Bob incident")
-        require(alice.request("/api/incident-comments/30000000-0000-0000-0000-000000000003")[0] == 403,
-                "Reporter could read own incident internal comment")
-        require(morgan.request("/api/incident-comments/30000000-0000-0000-0000-000000000003")[0] == 200,
-                "Analyst could not read internal comment")
-        print("child_parent_and_internal_rules=passed")
-
-        require(alice.request("/api/incidents/" + ALICE, method="DELETE")[0] == 403,
-                "Delete own incident must be denied")
-        require(alice.request("/api/incidents/" + BOB, method="DELETE")[0] == 404,
-                "Delete foreign incident must be concealed")
-        print("delete_rules=passed")
-
-        # A-02 positive mutation and A-06/A-07 triage use a fresh synthetic resource.
-        created = alice.request("/api/incidents", {
-            "title": "LR04 fixed scenario " + uuid.uuid4().hex,
-            "description": "Temporary synthetic incident used for the fixed authorization scenario.",
-            "severity": "Low", "occurredAtUtc": "2026-08-03T07:45:00+00:00"}, method="POST")
-        require(created[0] == 201 and isinstance(created[2], dict), "Could not create temporary Reporter incident")
-        created_id = created[2]["id"]
-        own_update = alice.request("/api/incidents/" + created_id, {
-            "title": "LR04 fixed owner update " + uuid.uuid4().hex,
-            "description": "The Reporter updates only title and description of the owned temporary incident."}, method="PUT")
-        require(own_update[0] == 204, "Reporter owner content update failed")
-        require(alice.request("/api/incidents/" + created_id)[2]["title"].startswith("LR04 fixed owner update"),
-                "Owner content update was not persisted")
-        print("owner_update=passed")
-
-        reporter_triage = alice.request("/api/incidents/" + created_id + "/triage", method="POST")
-        emit("A-06 Alice triage own New incident", reporter_triage)
-        require(reporter_triage[0] == 403, "Reporter triage must be denied")
-        trace_id = reporter_triage[2].get("traceId") if isinstance(reporter_triage[2], dict) else None
-        require(bool(trace_id), "Denied triage response has no trace id")
-        print("triage_denied_trace_id=" + trace_id)
-        require(alice.request("/api/incidents/" + created_id)[2]["status"] == "New",
-                "Denied triage changed status")
-        analyst_triage = morgan.request("/api/incidents/" + created_id + "/triage", method="POST")
-        require(analyst_triage[0] == 204, "Analyst New-to-Triaged transition failed")
-        require(morgan.request("/api/incidents/" + created_id)[2]["status"] == "Triaged",
-                "Server did not set Triaged status")
-        print("triage_analyst_new_to_triaged=passed")
 
     print("poc_checks=passed")
     if vulnerable:

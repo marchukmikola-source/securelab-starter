@@ -26,7 +26,7 @@ public readonly record struct IncidentAccessContext(
     public bool HasSubject => SubjectId != Guid.Empty;
 }
 
-// One server-side decision point for Incident and its child resource.
+// One server-side decision point for existing Incident operations.
 // It accepts only the verified Identity principal plus state loaded from the DB.
 public sealed class IncidentAccessRules
 {
@@ -69,39 +69,6 @@ public sealed class IncidentAccessRules
             { HasSubject: true, IsReporter: true } => IncidentAccessDecision.NotFound,
             _ => IncidentAccessDecision.Forbidden
         };
-
-    public IncidentAccessDecision Delete(IncidentAccessContext context, Guid ownerUserId) =>
-        context switch
-        {
-            { HasSubject: true, IsReporter: true, SubjectId: var subjectId } when subjectId != ownerUserId
-                => IncidentAccessDecision.NotFound,
-            _ => IncidentAccessDecision.Forbidden
-        };
-
-    public IncidentAccessDecision Triage(
-        IncidentAccessContext context, Guid ownerUserId, IncidentStatus status) => context switch
-    {
-        { HasSubject: true, IsAnalyst: true } when status == IncidentStatus.New
-            => IncidentAccessDecision.Allow,
-        { HasSubject: true, IsAnalyst: true } => IncidentAccessDecision.Forbidden,
-        { HasSubject: true, IsReporter: true, SubjectId: var subjectId } when subjectId != ownerUserId
-            => IncidentAccessDecision.NotFound,
-        _ => IncidentAccessDecision.Forbidden
-    };
-
-    public IncidentAccessDecision ReadComment(
-        IncidentAccessContext context, Guid incidentOwnerUserId, bool isInternal)
-    {
-        var parentRead = Read(context, incidentOwnerUserId);
-        if (parentRead != IncidentAccessDecision.Allow)
-        {
-            return parentRead;
-        }
-
-        return isInternal && !context.IsAnalyst
-            ? IncidentAccessDecision.Forbidden
-            : IncidentAccessDecision.Allow;
-    }
 
     public bool MayCreate(IncidentAccessContext context) =>
         context.HasSubject && (context.IsReporter || context.IsAnalyst);

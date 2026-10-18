@@ -75,22 +75,8 @@ try {
     if (-not $ready) { throw 'Local API did not become ready.' }
     & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --check
     Assert-Exit 'Environment check'
-    $pocOutput = & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation
-    $pocOutput
+    & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation
     Assert-Exit 'HTTP PoC'
-    if ($ExpectedState -eq 'fixed') {
-        $traceLine = $pocOutput | Where-Object { $_ -like 'triage_denied_trace_id=*' } | Select-Object -Last 1
-        if (-not $traceLine) { throw 'Fixed scenario did not return a triage deny trace id.' }
-        $traceId = $traceLine.Substring('triage_denied_trace_id='.Length)
-        $auditLine = Get-Content -LiteralPath (Join-Path $runDirectory 'api.stdout.log') |
-            Where-Object { $_ -match 'authorization\.denied' -and $_ -like "*$traceId*" } |
-            Select-Object -Last 1
-        if (-not $auditLine) { throw 'Missing correlated authorization.denied audit event.' }
-        if ($auditLine -match '(?i)password|cookie|token|authorization:') {
-            throw 'Audit event contains a prohibited secret-related field.'
-        }
-        Write-Output 'triage_audit_trace_correlation=passed'
-    }
 } finally {
     if ($null -ne $api -and -not $api.HasExited) {
         # Kill only the process tree created above, including dotnet run's child API.

@@ -24,6 +24,9 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
         using var morgan = await LoginAsync("morgan");
         using var own = await alice.GetAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
         Assert.Equal(HttpStatusCode.OK, own.StatusCode);
+        var ownerJson = JsonNode.Parse(await own.Content.ReadAsStringAsync())!.AsObject();
+        Assert.DoesNotContain(ownerJson["comments"]!.AsArray(), comment =>
+            comment!["id"]!.GetValue<Guid>() == DbSeeder.AliceInternalCommentId);
 
         using var foreign = await alice.GetAsync($"/api/incidents/{DbSeeder.BobIncidentId}");
         using var unknown = await alice.GetAsync($"/api/incidents/{Guid.NewGuid()}");
@@ -67,28 +70,15 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
     }
 
     [Fact]
-    public async Task UpdateDeleteAndComment_EnforceTheSameParentDecision()
+    public async Task Update_EnforcesTheSameOwnerDecisionAsDetails()
     {
         using var alice = await LoginAsync("alice");
         using var bob = await LoginAsync("bob");
-        using var morgan = await LoginAsync("morgan");
         var before = JsonNode.Parse(await bob.GetStringAsync($"/api/incidents/{DbSeeder.BobIncidentId}"))!;
         var payload = new { title = "Нова назва, яку Alice не може встановити", description = new string('x', 50) };
         using var foreignUpdate = await alice.PutAsJsonAsync($"/api/incidents/{DbSeeder.BobIncidentId}", payload);
         Assert.Equal(HttpStatusCode.NotFound, foreignUpdate.StatusCode);
         Assert.Equal(before.ToJsonString(), (await JsonNode.ParseAsync(await bob.GetStreamAsync($"/api/incidents/{DbSeeder.BobIncidentId}")))!.ToJsonString());
-
-        using var ownDelete = await alice.DeleteAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
-        using var foreignDelete = await alice.DeleteAsync($"/api/incidents/{DbSeeder.BobIncidentId}");
-        Assert.Equal(HttpStatusCode.Forbidden, ownDelete.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, foreignDelete.StatusCode);
-
-        using var foreignComment = await alice.GetAsync("/api/incident-comments/30000000-0000-0000-0000-000000000002");
-        using var internalComment = await alice.GetAsync($"/api/incident-comments/{DbSeeder.AliceInternalCommentId}");
-        using var analystInternal = await morgan.GetAsync($"/api/incident-comments/{DbSeeder.AliceInternalCommentId}");
-        Assert.Equal(HttpStatusCode.NotFound, foreignComment.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, internalComment.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, analystInternal.StatusCode);
     }
 
     [Fact]
@@ -138,28 +128,6 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
             severity = "Low", occurredAtUtc = DateTimeOffset.UtcNow
         });
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Triage_RequiresAnalystAndNewState()
-    {
-        var id = Guid.NewGuid();
-        await AddTestIncidentAsync(id);
-        try
-        {
-            using var alice = await LoginAsync("alice");
-            using var morgan = await LoginAsync("morgan");
-            using var reporterDenied = await alice.PostAsync($"/api/incidents/{id}/triage", null);
-            Assert.Equal(HttpStatusCode.Forbidden, reporterDenied.StatusCode);
-            using var allowed = await morgan.PostAsync($"/api/incidents/{id}/triage", null);
-            Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
-            var response = JsonNode.Parse(await morgan.GetStringAsync($"/api/incidents/{id}"))!.AsObject();
-            Assert.Equal("Triaged", response["status"]!.GetValue<string>());
-        }
-        finally
-        {
-            await RemoveTestIncidentAsync(id);
-        }
     }
 
     private Task<HttpClient> LoginAsync(string user) => factory.LoginAsync(user, Password());
