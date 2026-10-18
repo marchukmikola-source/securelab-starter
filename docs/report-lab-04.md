@@ -81,6 +81,14 @@ Administrator. Для відсутніх у cumulative state delete, transition,
 child та export/audit flows матриця містить конкретний deny/відсутність маршруту;
 їх не створено лише для штучного розширення ЛР 04.
 
+## Пункт 8: browser client
+
+У тій самій browser-вкладці Alice відкрила власний Incident, а потім probe
+`loadIncidentDetails("20000000-0000-0000-0000-000000000002")` запросив Bob.
+Клієнт відобразив `Помилка: Інцидент не знайдено` через
+`detailsElement.textContent`; рішення залишилося server-side. Обидва стани
+зафіксовано у [evidence/lab04-browser.txt](evidence/lab04-browser.txt).
+
 ## Використання ШІ
 
 Codex використано для звірення вимог, підготовки контрольованого сценарію,
