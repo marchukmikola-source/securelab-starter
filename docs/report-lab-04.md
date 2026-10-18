@@ -13,6 +13,60 @@ regression tests, HTTP PoC та контрольований PoC privileged acti
 безпечну `404`; анонімний запит — `401`; дозволений ресурс із відсутнім
 правом на операцію — `403`.
 
+### Вихідні дані та правило прийняття рішення
+
+У системі є чотири навчальні principal: Alice і Bob мають роль `Reporter`,
+Morgan — `Analyst`, Administrator — `Administrator`. Ідентифікатор ресурсу
+передається в URL лише для пошуку Incident. Право визначається тільки після
+того, як сервер отримав verified principal із cookie Identity та завантажив
+власника ресурсу з БД.
+
+Централізований контекст формується в
+`Application/Incidents/IncidentAccessRules.cs`:
+
+```csharp
+public IncidentAccessContext From(ClaimsPrincipal principal)
+{
+    var subject = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+    return Guid.TryParse(subject, out var subjectId)
+        ? new IncidentAccessContext(
+            subjectId,
+            principal.IsInRole("Reporter"),
+            principal.IsInRole("Analyst"),
+            principal.IsInRole("Administrator"))
+        : default;
+}
+```
+
+Отже, поле `role` у JSON, `OwnerUserId` у body або прихована кнопка браузера
+не впливають на авторизацію. Матриця фіксує такий контракт:
+
+| Операція | Reporter | Analyst | Administrator |
+|---|---|---|---|
+| `GET details` | власний `200`, чужий `404` | `200` для наявного | `403` |
+| `PUT content` | лише власний `204` | `403` | `403` |
+| list/search/summary | тільки власна множина | вся множина для аналізу | `403` |
+| `POST triage` | власний `403`, чужий `404` | `204` тільки `New → Triaged` | `403` |
+
+Для details decision є resource-based, а не URL-based:
+
+```csharp
+public IncidentAccessDecision Read(IncidentAccessContext context, Guid ownerUserId) =>
+    context switch
+    {
+        { HasSubject: true, IsAnalyst: true } => IncidentAccessDecision.Allow,
+        { HasSubject: true, IsReporter: true, SubjectId: var id } when id == ownerUserId
+            => IncidentAccessDecision.Allow,
+        { HasSubject: true, IsReporter: true } => IncidentAccessDecision.NotFound,
+        _ => IncidentAccessDecision.Forbidden
+    };
+```
+
+`404` для чужого Reporter є свідомою політикою concealment: зовнішній клієнт
+не може відрізнити чужий наявний GUID від випадкового відсутнього GUID. Це
+не означає, що server не знає ресурс: він спочатку читає owner і лише потім
+ухвалює нейтральну відповідь.
+
 ## Пункт 4–5: контрольований vulnerable state
 
 - Базовий commit: `73901c423e7dc16ef0b19d9f3cbe96e1c710b856`.
@@ -31,6 +85,34 @@ regression tests, HTTP PoC та контрольований PoC privileged acti
 відбувалася тільки в ізольованій тимчасовій БД, а первісний content Bob був
 відновлений.
 
+Мінімальна форма дефекту в vulnerable commit була такою:
+
+```csharp
+var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, ct);
+if (incident is null) return NotFound();
+
+// Порівняння incident.OwnerUserId із verified principal відсутнє.
+incident.Title = request.Title!.Trim();
+incident.Description = request.Description!.Trim();
+await db.SaveChangesAsync(ct);
+```
+
+Контрольований PoC використовував однакові cookie Alice, метод і body. Змінювався
+лише GUID після `/api/incidents/`:
+
+```http
+GET /api/incidents/20000000-0000-0000-0000-000000000001  # Alice -> Alice
+GET /api/incidents/20000000-0000-0000-0000-000000000002  # Alice -> Bob
+
+PUT /api/incidents/20000000-0000-0000-0000-000000000002
+Content-Type: application/json
+
+{ "title": "LR04 controlled update by Alice", "description": "..." }
+```
+
+У vulnerable state другий `GET` повертав `200`, а `PUT` — `204`: це і є
+IDOR/BOLA, бо Alice не змінювала principal, а змінила тільки selector ресурсу.
+
 Vulnerable commit лишається лише у приватній навчальній історії. Він не
 використовується для deployment і не має фінального тегу.
 
@@ -48,7 +130,34 @@ URL не можуть надати право доступу.
 Reporter не бачить internal comments, Analyst бачить їх після дозволеного
 parent details. Нових endpoint-ів у fixed state не додано.
 
-## Фінальна перевірка
+Фіксація details виконує всі необхідні кроки в server endpoint:
+
+```csharp
+var context = accessRules.From(httpContext.User);
+if (accessRules.ReadScope(context) == IncidentReadScope.Forbidden) return Forbidden();
+
+var target = await queries.GetAccessTargetAsync(id, cancellationToken);
+if (target is null) return NotFound();
+var decision = accessRules.Read(context, target.OwnerUserId);
+if (decision != IncidentAccessDecision.Allow) return Denied(decision);
+
+var incident = await queries.GetDetailsAsync(id, context.IsAnalyst, cancellationToken);
+return incident is null ? NotFound() : Results.Ok(incident);
+```
+
+Для update той самий principal проходить окреме `Update`-рішення до validation
+і до зміни tracked entity. DTO обмежений content-полями:
+
+```csharp
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed record UpdateIncidentContentRequest(string? Title, string? Description);
+```
+
+Тому `ownerUserId`, `status`, `severity`, `id` та role не можуть потрапити до
+mutation. Незнайомі або protected JSON-поля дають `400 Bad Request`; чужий
+Incident для Reporter дає `404` ще до validation і `SaveChangesAsync`.
+
+## Пункт 7: повторний PoC та позитивна регресія
 
 Повторити з кореня проєкту в PowerShell 7, коли Docker працює:
 
@@ -73,6 +182,12 @@ password, cookie, token або `Set-Cookie` values.
 | A-08b protected fields update | `400`, стан не змінився |
 | Details comments | Reporter не бачить internal, Analyst бачить |
 
+Для negative mutation proof скрипт спочатку читає baseline Bob, виконує запит
+Alice, а потім читає Bob повторно. У fixed state він перевіряє
+`foreign_content_changed=false`. Для positive regression Alice оновлює власний
+content, підтверджує нові `title` і `description`, а потім відновлює baseline.
+Таким чином успішна operation не стала побічним ефектом deny-перевірки.
+
 Реальний ізольований прогін після фінального виправлення наведено у
 [evidence/lab04-fixed.txt](evidence/lab04-fixed.txt). Regression tests у
 `tests/SecureLab.Api.Tests/IncidentAuthorizationTests.cs` перевіряють details,
@@ -91,6 +206,32 @@ child та export/audit flows матриця містить конкретний
 симетричної перевірки Bob побачив тільки два власні Incident і успішно відкрив
 `Невідома спроба входу`; Bob -> Alice вже зафіксовано у fixed HTTP PoC як `404`.
 
+Код browser client не інтерпретує API-дані як HTML. Для дозволеного Incident
+він створює текстові DOM-вузли, а у гілці відмови записує тільки текст
+Problem Details:
+
+```javascript
+function createTextElement(tagName, text, className) {
+  const element = document.createElement(tagName);
+  element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+
+async function loadIncidentDetails(id) {
+  detailsElement.textContent = "Завантаження…";
+  try {
+    renderIncidentDetails(await apiFetch(`/api/incidents/${encodeURIComponent(id)}`));
+  } catch (error) {
+    detailsElement.textContent = `Помилка: ${error.message}`;
+  }
+}
+```
+
+Отже, client не містить role/owner перевірки і не приховує факт відмови штучно:
+він лише відображає server response. Відсутність `innerHTML` також не дозволяє
+даним Incident або error message стати HTML-кодом.
+
 ## Пункти 9–10: privileged action і вертикальне підвищення
 
 Цільовий contract для `POST /api/incidents/{id}/triage` описано в
@@ -100,6 +241,23 @@ foreign Reporter — concealment `404`, Administrator — `403`, а Analyst дл
 status, відмінного від `New`, — `409`. Після deny fixed state має записувати
 безпечну структуровану audit event `incident.triage.denied` тільки з verified
 actor, operation, incident id, рішенням і UTC-часом.
+
+Рішення для цієї action централізоване й не має client-supplied параметрів:
+
+```csharp
+public IncidentAccessDecision Triage(IncidentAccessContext context, Guid ownerUserId) =>
+    context switch
+    {
+        { HasSubject: true, IsAnalyst: true } => IncidentAccessDecision.Allow,
+        { HasSubject: true, IsReporter: true, SubjectId: var id } when id != ownerUserId
+            => IncidentAccessDecision.NotFound,
+        _ => IncidentAccessDecision.Forbidden
+    };
+```
+
+Тут ownership впливає тільки на concealment для іншого Reporter. Власний
+Reporter також потрапляє в `Forbidden`, тому ownership не перетворюється на
+право triage.
 
 Контрольований vulnerable commit п. 10:
 `5a1d657e86ec50c89630c7a60a52a0d9de057abd`
@@ -117,6 +275,21 @@ deployment state.
 status, але не виконує server-side role/policy decision для `Incident.Triage`
 до mutation. Повний безпечний доказ наведено у
 [lab04-triage-vulnerable.txt](evidence/lab04-triage-vulnerable.txt).
+
+Скорочено, vulnerable logic мала тільки state-check і mutation:
+
+```csharp
+var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, ct);
+if (incident is null) return NotFound();
+if (incident.Status != IncidentStatus.New) return Results.Problem(statusCode: 409);
+
+incident.Status = IncidentStatus.Triaged;
+await db.SaveChangesAsync(ct); // role/policy decision відсутнє
+```
+
+Підставлення `role=Administrator` не було причиною успіху: порожній `POST`
+як Alice давав той самий `204`. Значення body просто ігнорувалося, а дефектом
+була відсутність обов'язкового рішення сервера.
 
 Відтворення виконується з приватної гілки vulnerable state; воно запускає
 старі fixed checks і цей окремий PoC лише в новій тимчасовій БД:
@@ -137,6 +310,32 @@ Fixed commit: `27b2ec6e94fbae95c2683ad46400f912570b696b`
 `Triaged` і викликає `SaveChangesAsync`. Endpoint не має DTO для role, owner
 або status: ці JSON-поля не є input для authorization чи transition.
 
+Власне endpoint дотримується порядку: tracked entity → decision → deny audit
+і response → state-check → server-selected next status → `SaveChangesAsync`.
+
+```csharp
+var actor = accessRules.From(httpContext.User);
+var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, ct);
+if (incident is null) return NotFound();
+
+var decision = accessRules.Triage(actor, incident.OwnerUserId);
+if (decision != IncidentAccessDecision.Allow)
+{
+    IncidentTriageAudit.Denied(loggerFactory, actor.SubjectId, incident.Id,
+        DateTimeOffset.UtcNow, Activity.Current?.Id ?? httpContext.TraceIdentifier);
+    return Denied(decision);
+}
+if (incident.Status != IncidentStatus.New) return Results.Problem(statusCode: 409);
+
+var nextStatus = IncidentStatus.Triaged;
+incident.Status = nextStatus;
+await db.SaveChangesAsync(ct);
+```
+
+`AsNoTracking()` тут не використовується: EF Core відстежує entity, тому
+успішна transition зберігається разом із `IncidentStatusHistory`. При deny
+зміна status і запис history не створюються.
+
 Audit пишеться через structured logger `SecureLab.Api.Audit.IncidentTriage`:
 `EventName=incident.triage.denied`, `Operation=Incident.Triage`, verified
 `ActorUserId`, `IncidentId`, `Result=Denied`, server-generated
@@ -145,11 +344,47 @@ description і stack trace не записуються. Реальний HTTP-д
 незмінний `New`, `204` Analyst, `409` повторної transition та рівний trace id
 у response й audit: [lab04-triage-fixed.txt](evidence/lab04-triage-fixed.txt).
 
+Виділений метод аудиту формує структуровані поля, а не конкатенує request body
+або виняток у текст повідомлення:
+
+```csharp
+loggerFactory.CreateLogger(LogCategory).LogWarning(DeniedEvent,
+    "{EventName} {Operation} {ActorUserId} {IncidentId} {Result} {OccurredAtUtc} {TraceId}",
+    "incident.triage.denied", "Incident.Triage", actorUserId, incidentId,
+    "Denied", occurredAtUtc, traceId);
+```
+
+У доказі є рівно ті дані, які дозволені контрактом. Наприклад, audit line
+містить event name, verified GUID actor/Incident, `Denied`, UTC-час і traceId;
+у ньому немає `role=Analyst` із forged JSON, `ownerUserId`, password або cookie.
+
 ## Пункт 13: authorization test matrix
 
 Новий [IncidentTriageAuthorizationTests.cs](../tests/SecureLab.Api.Tests/IncidentTriageAuthorizationTests.cs)
 створює temporary Incident, працює через login/cookie власної Identity
 реалізації та прибирає Incident і його history у `finally`.
+
+Negative test навмисно надсилає захищені fields, після чого читає ресурс ще
+раз. Це перевіряє не лише HTTP status, а й відсутність mutation:
+
+```csharp
+using var reporterDenied = await alice.PostAsJsonAsync($"/api/incidents/{id}/triage", new
+{
+    role = "Analyst", ownerUserId = DbSeeder.MorganId,
+    status = "Triaged", isTransitionAllowed = true
+});
+Assert.Equal(HttpStatusCode.Forbidden, reporterDenied.StatusCode);
+await AssertStatusAsync(alice, id, "New");
+```
+
+Окремий audit test має in-memory `ILoggerProvider`, читає Problem Details і
+перевіряє equality traceId, тип часу та allowlist ключів structured event:
+
+```csharp
+Assert.Equal(responseTraceId, entry.Fields["TraceId"]);
+Assert.IsType<DateTimeOffset>(entry.Fields["OccurredAtUtc"]);
+Assert.All(entry.Fields.Keys, key => Assert.Contains(key, allowedKeys));
+```
 
 | Рядок | Автоматична перевірка | Результат |
 |---|---|---|
