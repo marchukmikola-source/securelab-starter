@@ -2,7 +2,8 @@ param(
     [string]$Python = 'python',
     [string]$Container = 'secure-lab-postgres-1',
     [ValidateRange(1024, 65535)][int]$Port = 5080,
-    [ValidateSet('vulnerable', 'fixed')][string]$ExpectedState = 'vulnerable'
+    [ValidateSet('vulnerable', 'fixed')][string]$ExpectedState = 'vulnerable',
+    [switch]$TriageFixedPoC
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,6 +78,38 @@ try {
     Assert-Exit 'Environment check'
     & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation
     Assert-Exit 'HTTP PoC'
+    if ($TriageFixedPoC) {
+        $triageOutput = & $Python -X utf8 scripts/lab04_triage_fixed.py --host $apiHost 2>&1
+        $triageExit = $LASTEXITCODE
+        $traceLine = @($triageOutput | Where-Object { $_ -like 'denied_trace_id=*' } | Select-Object -Last 1)
+        $traceId = if ($traceLine.Count -eq 1) {
+            $traceLine[0].ToString().Substring('denied_trace_id='.Length)
+        } else {
+            '<missing>'
+        }
+        $auditLine = @(Get-Content (Join-Path $runDirectory 'api.stdout.log') |
+            Where-Object { $_ -like '*incident.triage.denied*' } |
+            Select-Object -Last 1)
+        $auditEvent = if ($auditLine.Count -eq 1) { $auditLine[0].ToString() } else { '<missing>' }
+        $auditTraceMatchesResponse = $traceId -ne '<missing>' -and $auditEvent -like "*$traceId*"
+        $auditEventLine = 'audit_log_event=' + $auditEvent
+        $auditTraceLine = 'audit_trace_matches_response=' + $auditTraceMatchesResponse.ToString().ToLowerInvariant()
+        $evidence = @(
+            'SecureLab LR04 points 11-12: fixed triage HTTP and audit evidence.'
+            "API: $apiHost; isolated synthetic PostgreSQL database."
+            'Credentials, cookies, tokens, request body and stack traces are omitted.'
+            ''
+        )
+        $evidence += $triageOutput
+        $evidence += ''
+        $evidence += $auditEventLine
+        $evidence += $auditTraceLine
+        $evidence | Set-Content -Encoding utf8 (Join-Path $repo 'docs\evidence\lab04-triage-fixed.txt')
+        if ($triageExit -ne 0) { throw 'Fixed triage PoC failed; inspect the local result.' }
+        if ($traceLine.Count -ne 1 -or $auditLine.Count -ne 1 -or -not $auditTraceMatchesResponse) {
+            throw 'Audit event does not contain the denial response trace id.'
+        }
+    }
 } finally {
     if ($null -ne $api -and -not $api.HasExited) {
         # Kill only the process tree created above, including dotnet run's child API.

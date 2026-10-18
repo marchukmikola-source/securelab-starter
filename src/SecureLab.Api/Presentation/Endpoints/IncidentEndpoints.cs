@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,11 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+        group.MapPost("/{id:guid}/triage", TriageAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
         return group;
     }
 
@@ -100,6 +106,44 @@ public static class IncidentEndpoints
         incident.Title = title;
         incident.Description = description;
         incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> TriageAsync(
+        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
+        SecureLabDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
+    {
+        var actor = accessRules.From(httpContext.User);
+        var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null) return NotFound();
+        var decision = accessRules.Triage(actor, incident.OwnerUserId);
+        if (decision != IncidentAccessDecision.Allow)
+        {
+            IncidentTriageAudit.Denied(loggerFactory, actor.SubjectId, incident.Id,
+                DateTimeOffset.UtcNow, Activity.Current?.Id ?? httpContext.TraceIdentifier);
+            return Denied(decision);
+        }
+        if (incident.Status != IncidentStatus.New)
+        {
+            return Results.Problem(title: "Недійсний перехід статусу",
+                detail: "Перехід до Triaged можливий лише зі status New.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var nextStatus = IncidentStatus.Triaged;
+        incident.Status = nextStatus;
+        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        db.IncidentStatusHistory.Add(new IncidentStatusHistory
+        {
+            Id = Guid.NewGuid(),
+            IncidentId = incident.Id,
+            ChangedByUserId = actor.SubjectId,
+            OldStatus = IncidentStatus.New,
+            NewStatus = nextStatus,
+            Note = "Triage transition.",
+            CreatedAtUtc = incident.UpdatedAtUtc
+        });
         await db.SaveChangesAsync(cancellationToken);
         return Results.NoContent();
     }

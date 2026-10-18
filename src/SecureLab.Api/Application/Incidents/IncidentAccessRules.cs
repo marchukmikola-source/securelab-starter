@@ -70,6 +70,18 @@ public sealed class IncidentAccessRules
             _ => IncidentAccessDecision.Forbidden
         };
 
+    // Triage is a privileged operation: ownership never substitutes for the
+    // Analyst role. A foreign Reporter receives the same concealment decision
+    // as for details and update.
+    public IncidentAccessDecision Triage(IncidentAccessContext context, Guid ownerUserId) =>
+        context switch
+        {
+            { HasSubject: true, IsAnalyst: true } => IncidentAccessDecision.Allow,
+            { HasSubject: true, IsReporter: true, SubjectId: var subjectId } when subjectId != ownerUserId
+                => IncidentAccessDecision.NotFound,
+            _ => IncidentAccessDecision.Forbidden
+        };
+
     public bool MayCreate(IncidentAccessContext context) =>
         context.HasSubject && (context.IsReporter || context.IsAnalyst);
 }
