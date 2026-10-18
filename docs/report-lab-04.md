@@ -118,11 +118,13 @@ status, але не виконує server-side role/policy decision для `Inci
 до mutation. Повний безпечний доказ наведено у
 [lab04-triage-vulnerable.txt](evidence/lab04-triage-vulnerable.txt).
 
-Відтворення з кореня репозиторію запускає старі fixed checks і цей окремий
-PoC лише в новій тимчасовій БД:
+Відтворення виконується з приватної гілки vulnerable state; воно запускає
+старі fixed checks і цей окремий PoC лише в новій тимчасовій БД:
 
 ```powershell
+git switch lab/4-triage-vulnerable
 .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -TriagePoC
+git switch lab/4-authorization
 ```
 
 ## Використання ШІ
