@@ -63,6 +63,16 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
         var analystSearch = await morgan.GetFromJsonAsync<JsonArray>("/api/incidents/search?q=" + query);
         Assert.Contains(analystSearch!, row => row!["id"]!.GetValue<Guid>() == DbSeeder.BobIncidentId);
 
+        // A-11: a legitimate apostrophe must not bypass the same owner scope.
+        var apostropheQuery = Uri.EscapeDataString("O'Brien");
+        var aliceApostropheSearch = await alice.GetFromJsonAsync<JsonArray>(
+            "/api/incidents/search?q=" + apostropheQuery);
+        Assert.Empty(aliceApostropheSearch!);
+        var analystApostropheSearch = await morgan.GetFromJsonAsync<JsonArray>(
+            "/api/incidents/search?q=" + apostropheQuery);
+        Assert.Contains(analystApostropheSearch!, row =>
+            row!["title"]!.GetValue<string>() == "O'Brien classroom report");
+
         var aliceSummary = await alice.GetFromJsonAsync<JsonArray>("/api/incidents/severity-summary");
         var analystSummary = await morgan.GetFromJsonAsync<JsonArray>("/api/incidents/severity-summary");
         Assert.Equal(3, aliceSummary!.Sum(row => row!["count"]!.GetValue<int>()));
@@ -107,7 +117,7 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
     }
 
     [Fact]
-    public async Task Update_EnforcesTheSameOwnerDecisionAsDetails()
+    public async Task Update_AsNonOwner_ReturnsNotFound_AndDoesNotChangeResource()
     {
         using var alice = await LoginAsync("alice");
         using var bob = await LoginAsync("bob");

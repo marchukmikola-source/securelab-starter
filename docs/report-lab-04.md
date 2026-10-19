@@ -1,6 +1,6 @@
 # ЛР 04: контроль доступу до Incident
 
-Дата перевірки: 18.10.2026. Виконано пункти 2–13: матрицю доступу,
+Дата останньої fixed-перевірки: 19.10.2026. Виконано пункти 2–13: матрицю доступу,
 відтворювані vulnerable states, серверне виправлення для read/update,
 regression tests, HTTP PoC та контрольований PoC privileged action `triage`.
 
@@ -39,14 +39,21 @@ public IncidentAccessContext From(ClaimsPrincipal principal)
 ```
 
 Отже, поле `role` у JSON, `OwnerUserId` у body або прихована кнопка браузера
-не впливають на авторизацію. Матриця фіксує такий контракт:
+не впливають на авторизацію. Основна матриця має вісім колонок; для кожного
+відсутнього у cumulative state flow зафіксовано explicit deny або відсутність
+маршруту, а не неявний дозвіл.
 
-| Операція | Reporter | Analyst | Administrator |
-|---|---|---|---|
-| `GET details` | власний `200`, чужий `404` | `200` для наявного | `403` |
-| `PUT content` | лише власний `204` | `403` | `403` |
-| list/search/summary | тільки власна множина | вся множина для аналізу | `403` |
-| `POST triage` | власний `403`, чужий `404` | `204` тільки `New → Triaged` | `403` |
+| Операція | Рівень | Анонім | Reporter | Analyst | Administrator | Owner має значення? | Стан реалізації та доказ |
+|---|---|---|---|---|---|---|---|
+| `GET /api/incidents` | Добрий | `401` | `200`, лише власна множина | `200`, усі | `403` | Так для Reporter | scoped SQL query; A-05 |
+| `GET /api/incidents/search` | Відмінний | `401` | `200`, лише власний scope | `200`, усі | `403` | Так для Reporter | scope до sort/take; A-11 |
+| `GET /api/incidents/severity-summary` | Відмінний | `401` | `200`, лише власні counts | `200`, усі counts | `403` | Так для Reporter | scope до `GroupBy`; A-11 |
+| `GET /api/incidents/{id}` | Достатній | `401` | owner `200`, foreign `404` | `200` | `403` | Так для Reporter | `IncidentAccessRules.Read`; A-02/A-03/A-03R/A-10 |
+| `PUT /api/incidents/{id}` | Добрий | `401` | owner `204`, foreign `404`; A-08b extra JSON fields `400` | `403` | `403` | Так для Reporter | `IncidentAccessRules.Update`; A-04/A-08b |
+| Delete Incident | Добрий | deny; endpoint відсутній | deny; endpoint відсутній | deny; endpoint відсутній | deny; endpoint відсутній | Було б так для parent | Новий DELETE flow не створювався |
+| `POST /api/incidents/{id}/triage` | Добрий | `401` | owner `403`, foreign `404` | `204` лише `New → Triaged` | `403` | Лише для concealment foreign Reporter | `IncidentAccessRules.Triage`; A-06/A-07/A-09 |
+| Internal comment через details | Добрий | `401` | owner details без internal comment; foreign `404` | дозволений details містить internal comment | `403` | Так для parent details | наявний child path; A-12 |
+| Export/audit | Відмінний, якщо flow існує | deny; endpoint відсутній | deny; endpoint відсутній | deny; endpoint відсутній | deny; endpoint відсутній | Ні | Новий endpoint не створювався |
 
 Для details decision є resource-based, а не URL-based:
 
@@ -85,6 +92,20 @@ public IncidentAccessDecision Read(IncidentAccessContext context, Guid ownerUser
 `200`, Alice -> Bob update `204`, `foreign_content_changed=true`. Mutation
 відбувалася тільки в ізольованій тимчасовій БД, а первісний content Bob був
 відновлений.
+
+| Суб'єкт | Action | Identifier | Очікування за матрицею | Фактичний status у vulnerable state | Відповідь | Ефект | Артефакт |
+|---|---|---|---|---|---|---|---|
+| Anonymous | details | Bob `…0002` | `401` | `200` | Дані Bob | Disclosure без входу | private `lab04-poc.txt`, A-01 |
+| Alice / Reporter | details | Alice `…0001` | `200` | `200` | Власні дані Alice | baseline allow | private `lab04-poc.txt`, A-02 |
+| Alice / Reporter | details | Bob `…0002` | `404` | `200` | Дані Bob | Horizontal disclosure | private `lab04-poc.txt`, A-03 |
+| Alice / Reporter | update | Bob `…0002` | `404`, без зміни | `204` | No Content | `foreign_content_changed=true` | private `lab04-poc.txt`, A-04 |
+
+**CP-01.** Однакова роль `Reporter` визначає лише клас дозволених дій, але не
+додає право на конкретний Incident. Alice і Bob мають однакову роль, проте
+`OwnerUserId` Bob не збігається з verified `NameIdentifier` Alice. Місце
+server-side рішення у fixed state —
+`IncidentAccessRules.Read(context, target.OwnerUserId)` після
+`queries.GetAccessTargetAsync(id, ...)`, до формування response.
 
 Мінімальна форма дефекту в vulnerable commit була такою:
 
@@ -171,17 +192,21 @@ Incident для Reporter дає `404` ще до validation і `SaveChangesAsync`
 змінні оточення. Пароль існує лише в пам'яті процесу; докази не містять
 password, cookie, token або `Set-Cookie` values.
 
+Фактичний isolated run 19.10.2026 завершився з `0` warnings, `0` errors та
+`99 passed, 0 failed, 0 skipped`; його знеособлений результат збережено в
+`docs/evidence/lab04-fixed.txt`.
+
 | Перевірка | Результат fixed PoC |
 |---|---|
 | A-01 anonymous -> Bob | `401` Problem Details |
 | A-02 Alice -> Alice | `200` |
 | A-02b Alice update own Incident | `204`; content змінюється, baseline відновлено |
-| A-03 / A-10 Alice -> Bob і missing | однакові безпечні `404` |
+| A-03 / A-10 Alice -> Bob і missing | той самий client: `404`, `application/problem+json`, нормалізовані JSON тотожні |
 | A-03R Morgan/Analyst -> Alice/Bob | `200` |
 | A-04 Alice update Bob | `404`; content Bob не змінився |
-| A-05 / A-11 list, search, summary Reporter | лише власна множина |
+| A-05 / A-11 list, search, summary Reporter | лише власна множина; `search?q=O'Brien` → `200 []`; Medium=1, Low=2 |
 | A-08b protected fields update | `400`, стан не змінився |
-| Details comments | Reporter не бачить internal, Analyst бачить |
+| A-12, наявний child path | Reporter не бачить internal comment у details; Bob parent details → `404`; Analyst бачить internal comment |
 
 Для negative mutation proof скрипт спочатку читає baseline Bob, виконує запит
 Alice, а потім читає Bob повторно. У fixed state він перевіряє
@@ -189,13 +214,31 @@ Alice, а потім читає Bob повторно. У fixed state він пе
 content, підтверджує нові `title` і `description`, а потім відновлює baseline.
 Таким чином успішна operation не стала побічним ефектом deny-перевірки.
 
+Для A-10 обидва запити зроблено тією самою cookie Alice; з відповідей вилучено
+лише кореляційні поля `traceId` / `requestId`. Збережені нормалізовані JSON
+мають однакові status, content type і body:
+
+```json
+{"detail":"Запитаний інцидент відсутній.","status":404,"title":"Інцидент не знайдено","type":"https://tools.ietf.org/html/rfc9110#section-15.5.5"}
+```
+
+Перший екземпляр — Alice → Bob, другий — Alice → non-existent GUID;
+`normalized_bodies_equal=true`. Отже, `404` не видає факт існування чужого
+Incident. У тому самому фактичному прогоні A-11 для `search?q=O'Brien` повернув
+`200`, `count=0`, `containsOBrien=false` для Alice.
+
 Реальний ізольований прогін після фінального виправлення наведено у
 [evidence/lab04-fixed.txt](evidence/lab04-fixed.txt). Regression tests у
 `tests/SecureLab.Api.Tests/IncidentAuthorizationTests.cs` перевіряють details,
 scope колекцій/агрегатів, update, protected fields, comments і deny
-Administrator. Для відсутніх у cumulative state delete, transition, direct
-child та export/audit flows матриця містить конкретний deny/відсутність маршруту;
-їх не створено лише для штучного розширення ЛР 04.
+Administrator. Успадковані анонімні `IncidentEndpointTests`
+`GetList_ReturnsSeededIncidents`, `GetDetails_ForUnknownId_ReturnsProblemDetails404`
+і `GetDetails_DoesNotExposeInternalOwnerFields` переведені на client після
+login; очікування старого list замінене A-05. `SearchMechanicsTests` також
+виконується authenticated client, бо search бере owner scope з principal. Для
+відсутніх у cumulative state delete, direct-child та export/audit flows матриця
+містить конкретний deny/відсутність маршруту; їх не створено лише для штучного
+розширення ЛР 04.
 
 ## Пункт 8: browser client
 
@@ -261,7 +304,7 @@ Reporter також потрапляє в `Forbidden`, тому ownership не �
 право triage.
 
 Контрольований vulnerable commit п. 10:
-`5a1d657e86ec50c89630c7a60a52a0d9de057abd`
+`c010d2d9aae4fd0ec18668c3875df04c9c6f90d0`
 (`test(lab04): reproduce triage privilege escalation`). Він існує тільки у
 локальній private гілці `lab/4-triage-vulnerable`, не має тегу і не є
 deployment state.
@@ -303,7 +346,7 @@ git switch lab/4-authorization
 
 ## Пункти 11–12: fixed triage policy та audit deny
 
-Fixed commit: `27b2ec6e94fbae95c2683ad46400f912570b696b`
+Fixed commit: `64889c11d27f7b1b1d13f9c2ae0494134bdb5e60`
 (`fix(authz): enforce incident triage policy`). Він не містить vulnerable
 поведінки з п. 10. `TriageAsync` завантажує tracked Incident, викликає
 `IncidentAccessRules.Triage` із verified principal і `OwnerUserId` ресурсу,
@@ -387,14 +430,22 @@ Assert.IsType<DateTimeOffset>(entry.Fields["OccurredAtUtc"]);
 Assert.All(entry.Fields.Keys, key => Assert.Contains(key, allowedKeys));
 ```
 
-| Рядок | Автоматична перевірка | Результат |
-|---|---|---|
-| A-06 | Reporter triage з підставленими `role`, `ownerUserId`, `status`, `isTransitionAllowed` | `403`; повторні details показують `New` |
-| A-06R | Інший Reporter triage | `404`; owner повторно читає `New` |
-| A-06A | Administrator triage | `403`; owner повторно читає `New` |
-| A-07 | Analyst triage | `204`; details показують `Triaged`; history містить `New → Triaged` і verified Analyst |
-| A-07S | Analyst повторює triage | `409`; history не має нового запису |
-| Audit deny | Reporter `403` | structured event має allowlist полів і `TraceId`, рівний Problem Details `traceId` |
+| Рядок | Рівень | HTTP-boundary сценарій | Очікувано | Фактично та доказ |
+|---|---|---|---|---|
+| A-01 | Усі | Anonymous → Bob details | `401`, без redirect | `401 application/problem+json`; fixed PoC |
+| A-02 | Усі | Alice → Alice details | `200` | `200`; fixed PoC |
+| A-03 | Усі | Alice → Bob details | `404` | `404`; тіло нормалізовано збігається з A-10 |
+| A-03R | Усі | Morgan/Analyst → Alice і Bob details | `200` | `200` для обох; fixed PoC |
+| A-04 | Добрий | Alice `PUT` Bob | `404`, без mutation | `404`; Bob before/after однакові; `Update_AsNonOwner_ReturnsNotFound_AndDoesNotChangeResource` |
+| A-05 | Добрий | list як Alice | лише own set | `count=3`, Bob відсутній |
+| A-06 | Добрий | owner Reporter triage з forged `role`, `ownerUserId`, `status`, `isTransitionAllowed` | `403`, `New` без зміни | `403`; повторні details `New` |
+| A-06R/A-06A | Добрий | foreign Reporter / Administrator triage | `404` / `403`, без зміни | owner повторно читає `New` |
+| A-07 | Добрий | Morgan/Analyst triage | `204`, `New → Triaged` | `204`; details `Triaged`, один history record |
+| A-08b | Добрий | owner update з extra `ownerUserId`, `status`, `severity`, `role` | `400`, повний state без зміни | `400`; повторні details збігаються |
+| A-09 | Добрий | Reporter denied triage | safe audit з response trace | allowlist structured fields; audit `TraceId` = Problem Details `traceId` |
+| A-10 | Усі | одна cookie Alice: Bob details і missing GUID | `404/404`, рівні нормалізовані JSON | два збережені JSON у `lab04-fixed.txt`; `normalized_bodies_equal=true` |
+| A-11 | Відмінний | Alice search і severity-summary | тільки own scope | `O'Brien` → `200 []`; summary Medium=1, Low=2 |
+| A-12 | Добрий | наявний child path через parent details | child не оминає parent decision | Bob parent details → `404`; own Reporter details не містить internal comment; Analyst містить |
 
 Повний відтворюваний fixed прогін з кореня проєкту:
 

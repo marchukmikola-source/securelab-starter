@@ -13,6 +13,7 @@ import urllib.request
 ALICE = "20000000-0000-0000-0000-000000000001"
 BOB = "20000000-0000-0000-0000-000000000002"
 MISSING = "20000000-0000-0000-0000-ffffffffffff"
+OBRIEN_TITLE = "O'Brien classroom report"
 SUBJECTS = {
     "alice": "10000000-0000-0000-0000-000000000001",
     "bob": "10000000-0000-0000-0000-000000000002",
@@ -71,6 +72,13 @@ def emit(label, result):
     print(json.dumps(safe, ensure_ascii=False))
 
 
+def normalize_problem(body):
+    """Keep an evidence-safe Problem Details copy for the policy-404 comparison."""
+    require(isinstance(body, dict), "Expected a Problem Details JSON object")
+    return {key: value for key, value in body.items()
+            if key not in ("traceId", "requestId")}
+
+
 def details(client, incident_id, expected, label):
     result = client.request("/api/incidents/" + incident_id)
     emit(label, result)
@@ -107,8 +115,16 @@ def run(args, password):
     require(alice.request("/api/me")[2]["id"] == SUBJECTS["alice"], "Alice principal changed")
     unknown = details(alice, MISSING, 404, "A-10 Alice -> missing")
     if not vulnerable:
-        normalized = lambda body: {k: v for k, v in body.items() if k not in ("traceId", "requestId")}
-        require(normalized(foreign[2]) == normalized(unknown[2]), "Foreign/missing bodies differ")
+        foreign_normalized = normalize_problem(foreign[2])
+        missing_normalized = normalize_problem(unknown[2])
+        # These two saved JSON lines are safe to copy into the report: correlation
+        # identifiers were deliberately removed before comparison and output.
+        print("A-10 foreign_normalized_body=" +
+              json.dumps(foreign_normalized, ensure_ascii=False, sort_keys=True))
+        print("A-10 missing_normalized_body=" +
+              json.dumps(missing_normalized, ensure_ascii=False, sort_keys=True))
+        require(foreign_normalized == missing_normalized, "Foreign/missing bodies differ")
+        print("A-10 normalized_bodies_equal=true")
     details(bob, BOB, 200, "Bob -> Bob")
     details(bob, ALICE, 200 if vulnerable else 404, "Bob -> Alice")
     details(morgan, ALICE, 200, "A-03R Morgan -> Alice")
@@ -121,17 +137,22 @@ def run(args, password):
 
     if args.perimeter:
         # Required A-05/A-11 checks for the existing collection routes.
-        for path, label in [
-            ("/api/incidents", "A-05 Alice list"),
+        for path, label, evidence_key, is_foreign_row in [
+            ("/api/incidents", "A-05 Alice list", "containsBob",
+             lambda row: row["id"] == BOB),
             ("/api/incidents/search?" + urllib.parse.urlencode({"q": "Невідома спроба входу"}),
-             "A-11 Alice search Bob title"),
+             "A-11 Alice search Bob title", "containsBob",
+             lambda row: row["id"] == BOB),
+            ("/api/incidents/search?" + urllib.parse.urlencode({"q": "O'Brien"}),
+             "A-11 Alice search O'Brien", "containsOBrien",
+             lambda row: row.get("title") == OBRIEN_TITLE),
         ]:
             status, _, body = alice.request(path)
             require(status == 200 and isinstance(body, list), label + ": unexpected result")
-            contains_bob = any(row["id"] == BOB for row in body)
+            contains_foreign = any(is_foreign_row(row) for row in body)
             print(json.dumps({"scenario": label, "status": status,
-                              "containsBob": contains_bob, "count": len(body)}))
-            require(contains_bob == vulnerable, label + ": unexpected visibility")
+                              evidence_key: contains_foreign, "count": len(body)}))
+            require(contains_foreign == vulnerable, label + ": unexpected visibility")
         status, _, summary = alice.request("/api/incidents/severity-summary")
         require(status == 200 and isinstance(summary, list), "Summary failed")
         print(json.dumps({"scenario": "A-11 Alice summary", "status": status,
