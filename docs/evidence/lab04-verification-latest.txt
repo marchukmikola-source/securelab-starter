@@ -1,0 +1,71 @@
+Verification started: 2026-10-20T15:50:05.0926959+03:00
+SDK: 10.0.402
+HEAD: 4b5f1ead25289c5827d2bcf01f6710414fcaa16b
+Source SHA256 tests\SecureLab.Api.Tests\CookieClient.cs: 034E24AFC3D239C0789F1C8B8A653DAB8E3BB28F37E45E82E3598DDC8AA6F260
+Source SHA256 tests\SecureLab.Api.Tests\IdentityRegistrationFailureTests.cs: 237E5E76668AB083D5CB5A7392D05A388FFC8E68E7233644D9D8DA61E7F74843
+  Determining projects to restore...
+  Restored F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\src\SecureLab.Api\SecureLab.Api.csproj (in 1,01 sec).
+  Restored F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tests\SecureLab.Api.Tests\SecureLab.Api.Tests.csproj (in 1,13 sec).
+  SecureLab.Api -> F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab04-poc-596487352901424cb9dc579bb9959884\artifacts\bin\SecureLab.Api\release\SecureLab.Api.dll
+  SecureLab.Api.Tests -> F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab04-poc-596487352901424cb9dc579bb9959884\artifacts\bin\SecureLab.Api.Tests\release\SecureLab.Api.Tests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:11.92
+Test run for F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab04-poc-596487352901424cb9dc579bb9959884\artifacts\bin\SecureLab.Api.Tests\release\SecureLab.Api.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+Results File: F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\docs\evidence\test-results\lab04-latest.trx
+
+Passed!  - Failed:     0, Passed:    99, Skipped:     0, Total:    99, Duration: 13 s - SecureLab.Api.Tests.dll (net10.0)
+4|5|3
+seed_password_present=true
+login_json_roundtrip=true
+expect=fixed
+alice_login_status=204
+alice_verified_subject=10000000-0000-0000-0000-000000000001
+bob_login_status=204
+bob_verified_subject=10000000-0000-0000-0000-000000000002
+morgan_login_status=204
+morgan_verified_subject=10000000-0000-0000-0000-000000000003
+{"scenario": "A-02 Alice -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-03 Alice -> Bob", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-16804992bb6ff593d35d8c3fdef3cf90-f562220a4caec59c-00"}}
+alice_same_cookie_for_own_and_foreign=true
+{"scenario": "A-10 Alice -> missing", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-4ae4ebaea064b1b5b604fa3f0af47d20-152508fcee0d03e6-00"}}
+A-10 foreign_normalized_body={"detail": "Запитаний інцидент відсутній.", "status": 404, "title": "Інцидент не знайдено", "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5"}
+A-10 missing_normalized_body={"detail": "Запитаний інцидент відсутній.", "status": 404, "title": "Інцидент не знайдено", "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5"}
+A-10 normalized_bodies_equal=true
+{"scenario": "Bob -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "Bob -> Alice", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-f6f536c7c9e35e4445221a8354a82d88-c3a3d1da131e5476-00"}}
+{"scenario": "A-03R Morgan -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "Morgan -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-01 Anonymous -> Bob", "status": 401, "contentType": "application/problem+json", "body": {"title": "Потрібна автентифікація.", "status": 401}}
+{"scenario": "A-05 Alice list", "status": 200, "containsBob": false, "count": 3}
+{"scenario": "A-11 Alice search Bob title", "status": 200, "containsBob": false, "count": 0}
+{"scenario": "A-11 Alice search O'Brien", "status": 200, "containsOBrien": false, "count": 0}
+{"scenario": "A-11 Alice summary", "status": 200, "counts": [{"severity": "Critical", "count": 0}, {"severity": "High", "count": 0}, {"severity": "Medium", "count": 1}, {"severity": "Low", "count": 2}]}
+a11_summary_scope_verified=true
+{"scenario": "Positive: Alice reads own before update", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-02b Alice updates own Incident", "status": 204, "contentType": "text/plain"}
+{"scenario": "Positive: Alice reads own after update", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "LR04 positive owner update", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+owner_update_status=204; owner_content_changed=true
+{"scenario": "Positive: Alice restores own content", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+owner_content_restored=true
+{"scenario": "Mutation: Bob reads before", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-04 Alice updates Bob", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-06a16399b2036030b76186e1d9e19692-fc7313a97093671d-00"}}
+{"scenario": "Mutation: Bob reads after", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+foreign_content_changed=false
+protected_response_fields_unchanged=true
+anonymous_update_status=401
+{"scenario": "Mutation: Bob reads after forged request", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+forged_fields_status=400; rejected_request_state_unchanged=true
+poc_checks=passed
+A-12 alice: login=204; details=200; internal_comment_3=false
+A-12 morgan: login=204; details=200; internal_comment_3=true
+missing_flow: DELETE /api/incidents/20000000-0000-0000-0000-ffffffffffff -> 405
+missing_flow: POST /api/incidents/20000000-0000-0000-0000-ffffffffffff/export -> 405
+missing_flow: POST /api/incidents/20000000-0000-0000-0000-ffffffffffff/audit -> 405
+a12_response_contract_verified=true
+isolated_database_removed=true
+Verification completed: 2026-10-20T15:50:46.0813520+03:00
