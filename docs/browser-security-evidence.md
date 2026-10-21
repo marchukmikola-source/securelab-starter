@@ -20,14 +20,14 @@ Vulnerable marker record: `dd114e4c-bc28-4b00-91f0-a2946f3ea193`, створен
 
 | Спостереження | До fix | Після fix | Посилання на доказ |
 |---|---|---|---|
-| Значення в БД/API | POST `201`, а наступний GET `200` повернув marker у `description` для record `dd114e4c-bc28-4b00-91f0-a2946f3ea193` | GET `200` для fixed record `47e88681-dd0e-49f9-ae70-56fcb1cb57fa` зберіг marker у JSON | Network POST/GET screenshot; fixed Network response ще зафіксувати |
-| DOM основного Description | `#description` містив `<img>` | Marker відображено повним буквальним рядком; дочірнього `<img>` немає | Fixed UI screenshot отримано; Elements screenshot ще зафіксувати |
-| Дія marker | `data-lab05-marker="executed"` для Alice та незалежної сесії Morgan | Marker має залишатися `null` | Elements / Console diagnostic screenshot ще зафіксувати |
-| Апостроф/лапки, 5 < 7, Unicode, HTML-like рядок | | | |
-| Довжина за власними правилами ЛР 2 | | | |
-| Вікно Morgan: GET і перевірка marker; контроль Bob | | | |
+| Значення в БД/API | POST `201`, а наступний GET `200` повернув marker у `description` для record `dd114e4c-bc28-4b00-91f0-a2946f3ea193` | GET `200` для fixed record `47e88681-dd0e-49f9-ae70-56fcb1cb57fa` зберігає незмінений marker у JSON | Network POST/GET; fixed UI retest |
+| DOM основного Description | `#description` містив `<img>` | Marker відображено повним буквальним рядком; дочірнього `<img>` немає | Fixed UI та DOM test `PASS` |
+| Дія marker | `data-lab05-marker="executed"` для Alice та незалежної сесії Morgan | `null` для fixed Description і public comments | Console diagnostic |
+| Апостроф/лапки, `<`, Unicode, HTML-like рядок | HTML-like marker був інтерпретований | Значення збережено та показано як текстовий вузол | Fixed Description і comments retest |
+| Довжина за власними правилами ЛР 2 | Наявне серверне `maxlength`/DTO правило не є HTML encoding | Не змінювалася: safe rendering не послаблює серверну validation | Контракт ЛР 2 лишився чинним |
+| Вікно Morgan: GET і перевірка marker; контроль Bob | Morgan GET `200` виконав marker; Bob GET `404`, marker `null` | Fixed policy відображення є однаковою для доступних users; Bob не має доступу до Alice resource | Independent-session/negative-control proof |
 
-Finding: актив; передумови; першопричина; safe DOM diff; retest; залишковий ризик: … Повторювана REG-XSS-01, негативний контроль і очікування: …
+Finding XSS-01. Актив: `Incident.Description` і public `IncidentComment.Text`, що повертаються через existing details endpoint. Передумови: authenticated user має право створити власний incident або public comment уже збережений у seed. Першопричина: browser client передавав server-provided string у `innerHTML`, тому HTML parser утворював element та виконував локальний marker. Виправлення: один helper `renderPlainText` створює text node і замінює children для title, description і кожного comment; server contract не змінювався. Retest: Description marker для `47e88681-dd0e-49f9-ae70-56fcb1cb57fa` видимий буквально, `description-dom.js` завершився `PASS: persisted description rendered as plain text`; comments після двох reads дали `firstCount: 2`, `secondCount: 2`, `duplicateFree: true`, `marker: null`. Залишковий ризик: текстовий sink не дорівнює attribute/URL/JavaScript context; URL слід перевіряти окремо.
 
 ## CORS і REG-CORS-01 (Для всіх)
 
@@ -60,23 +60,23 @@ Preflight з 4173 і 4174: до policy обидва origin були blocked; fix
 
 | Директива CSP | Фактичні ресурси застосунку | Обране джерело / причина |
 |---|---|---|
-| default-src | | |
-| script-src | | |
-| style-src | | |
-| connect-src | | |
-| img-src | | |
-| frame-ancestors | | |
+| default-src | local HTML, `app.js`, `browser-lab.js`, CSS, same-origin API fetch | `'self'` як мінімальна база: блокує сторонні ресурси за замовчуванням |
+| script-src | лише local deferred/module scripts | окремо не потрібен: успадковує `'self'` з `default-src` |
+| style-src | `/styles.css` з того самого origin | окремо не потрібен: успадковує `'self'` |
+| connect-src | same-origin `/api/*`, `/health` | окремо не потрібен: успадковує `'self'` |
+| img-src | локальні зображення відсутні; контрольний зовнішній `4173/x.png` | окремо не потрібен: успадковує `'self'`; зовнішній image blocked |
+| frame-ancestors | сторінки SecureLab не мають бути embedded | `'none'` забороняє framing |
 
-Місце зміни middleware: … Enforcement: document 200 і фактичний CSP header; три сторінки flow; кероване порушення `new Image()` до 4173 — результат: … Для «Добре» докази report-only не обов’язкові.
+Місце зміни middleware: `Program.cs`, middleware security headers перед routing/static files; Development `/scalar` виключено, щоб не ламати development API reference. Report-only: document `200` мав `Content-Security-Policy-Report-Only: default-src 'self'; frame-ancestors 'none'`. Кероване порушення `new Image().src = "http://localhost:4173/x.png"` на локальній сторінці дало Console violation, де браузер повідомив `policy is report-only, so the violation has been logged but no further action has been taken`. Enforcement: document `/browser-lab.html` повернув `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'`; та сама probe команда дала Console `The action has been blocked`. Main client, `auth-lab.html` і `browser-lab.html` завантажилися після enforcement; fixed Description показав marker буквальним текстом. Для «Добре» докази report-only не обов’язкові.
 
 | Header / control | Фактичне значення | Ризик і межа захисту / policy rationale |
 |---|---|---|
-| X-Content-Type-Options | | |
-| Referrer-Policy | | |
-| frame-ancestors | | |
+| X-Content-Type-Options | `nosniff` | не дає browser визначати інший MIME type замість наданого сервером |
+| Referrer-Policy | `no-referrer` | не передає URL сторінки зовнішньому destination; не замінює CSP чи authorization |
+| frame-ancestors | CSP `frame-ancestors 'none'` | browser не дозволяє помістити сторінки SecureLab у frame; це anti-clickjacking control |
 
 ## Додатково для Відмінно
 
-DOM-тест: файл/команда, browser, vulnerable commit і FAIL, fixed commit і PASS: … Comments, повторний render без дублювання та позитивні рядки: … CSP report-only → enforcement: фактичні headers, flow і кероване порушення в обох режимах: … `safe-url.js` / атрибут: … Пояснення text/attribute/URL/JavaScript та ризик third-party scripts — посилання на DEL-03: …
+DOM-тест: `resources/copyable/description-dom.js` у Chrome Console, fixed marker record `47e88681-dd0e-49f9-ae70-56fcb1cb57fa`: `PASS: persisted description rendered as plain text`. Vulnerable marker PoC зафіксував execution через `innerHTML`; formal DOM-negative rerun на isolated vulnerable commit треба виконати перед фінальним поданням. Comments: two reads дали `firstCount: 2`, `secondCount: 2`, `duplicateFree: true`, `marker: null`. CSP report-only → enforcement: фактичні headers і кероване порушення `new Image()` зафіксовано в обох режимах. `safe-url.js`: `https` та local `http` були прийняті; `javascript:` (включно з mixed-case/leading whitespace) і malformed URL повернули `null`; `onclick` лишився `null`. Text, HTML attribute, URL та JavaScript є різними contexts; якщо в майбутньому з’явиться third-party script, потрібні окреме рішення про source, SRI/дозвіл та review — `'self'` не робить сторонній script безпечним.
 
 Додаткових DEL, навчальних демо або нового журналу не подавати. Перед поданням повторити чекліст для обраного накопичувального рівня.
