@@ -129,6 +129,83 @@ public sealed class IncidentAuthorizationTests(SecureLabApiFactory factory)
     }
 
     [Fact]
+    public async Task Delete_EnforcesOwnerRuleAndPreservesForeignResourceAfterDeny()
+    {
+        using var anonymous = factory.CreateClient();
+        using var anonymousDelete = await anonymous.DeleteAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousDelete.StatusCode);
+        Assert.Null(anonymousDelete.Headers.Location);
+
+        using var alice = await LoginAsync("alice");
+        using var bob = await LoginAsync("bob");
+        using var morgan = await LoginAsync("morgan");
+        using var admin = await LoginAsync("admin");
+
+        var bobBefore = JsonNode.Parse(await bob.GetStringAsync($"/api/incidents/{DbSeeder.BobIncidentId}"))!;
+        using var foreignDelete = await alice.DeleteAsync($"/api/incidents/{DbSeeder.BobIncidentId}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignDelete.StatusCode);
+        var bobAfter = JsonNode.Parse(await bob.GetStringAsync($"/api/incidents/{DbSeeder.BobIncidentId}"))!;
+        Assert.Equal(bobBefore.ToJsonString(), bobAfter.ToJsonString());
+
+        using var analystDenied = await morgan.DeleteAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, analystDenied.StatusCode);
+        using var adminDenied = await admin.DeleteAsync($"/api/incidents/{DbSeeder.AliceIncidentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, adminDenied.StatusCode);
+
+        var id = Guid.NewGuid();
+        await AddTestIncidentAsync(id);
+        try
+        {
+            using var allowed = await alice.DeleteAsync($"/api/incidents/{id}");
+            Assert.Equal(HttpStatusCode.NoContent, allowed.StatusCode);
+            using var removed = await alice.GetAsync($"/api/incidents/{id}");
+            Assert.Equal(HttpStatusCode.NotFound, removed.StatusCode);
+        }
+        finally
+        {
+            await RemoveTestIncidentAsync(id);
+        }
+    }
+
+    [Fact]
+    public async Task ChildComment_EnforcesParentReadAndInternalVisibilityRules()
+    {
+        using var anonymous = factory.CreateClient();
+        using var anonymousRead = await anonymous.GetAsync(
+            $"/api/incident-comments/{DbSeeder.BobPublicCommentId}");
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymousRead.StatusCode);
+        Assert.Null(anonymousRead.Headers.Location);
+
+        using var alice = await LoginAsync("alice");
+        using var morgan = await LoginAsync("morgan");
+        using var admin = await LoginAsync("admin");
+
+        using var ownPublic = await alice.GetAsync(
+            $"/api/incident-comments/{DbSeeder.AlicePublicCommentId}");
+        Assert.Equal(HttpStatusCode.OK, ownPublic.StatusCode);
+
+        using var foreignParent = await alice.GetAsync(
+            $"/api/incident-comments/{DbSeeder.BobPublicCommentId}");
+        Assert.Equal(HttpStatusCode.NotFound, foreignParent.StatusCode);
+        using var hiddenInternal = await alice.GetAsync(
+            $"/api/incident-comments/{DbSeeder.AliceInternalCommentId}");
+        Assert.Equal(HttpStatusCode.NotFound, hiddenInternal.StatusCode);
+
+        using var analystPublic = await morgan.GetAsync(
+            $"/api/incident-comments/{DbSeeder.BobPublicCommentId}");
+        Assert.Equal(HttpStatusCode.OK, analystPublic.StatusCode);
+        using var analystInternal = await morgan.GetAsync(
+            $"/api/incident-comments/{DbSeeder.AliceInternalCommentId}");
+        Assert.Equal(HttpStatusCode.OK, analystInternal.StatusCode);
+        var internalJson = JsonNode.Parse(await analystInternal.Content.ReadAsStringAsync())!.AsObject();
+        Assert.Equal(DbSeeder.AliceInternalCommentId, internalJson["id"]!.GetValue<Guid>());
+
+        using var adminDenied = await admin.GetAsync(
+            $"/api/incident-comments/{DbSeeder.BobPublicCommentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, adminDenied.StatusCode);
+    }
+
+    [Fact]
     public async Task Update_AllowsOnlyReporterOwnerAndRejectsProtectedRequestFields()
     {
         var id = Guid.NewGuid();

@@ -1,84 +1,37 @@
 {
-  "alice": {
-    "login_status": 204,
-    "verified_subject": "10000000-0000-0000-0000-000000000001",
-    "method": "GET",
-    "path": "/api/incidents/20000000-0000-0000-0000-000000000001",
-    "status": 200,
-    "content_type": "application/json",
-    "body": {
-      "id": "20000000-0000-0000-0000-000000000001",
-      "title": "Підозрілий лист із вкладенням",
-      "description": "Одержано лист нібито від деканату. Вкладення не відкривалося.",
-      "severity": "Medium",
-      "status": "Triaged",
-      "occurredAtUtc": "2026-08-01T08:30:00+00:00",
-      "createdAtUtc": "2026-08-01T09:00:00+00:00",
-      "ownerDisplayName": "Аліса Коваль",
-      "comments": [
-        {
-          "id": "30000000-0000-0000-0000-000000000001",
-          "authorDisplayName": "Морган Литвин",
-          "text": "Заголовки листа передано аналітику.",
-          "createdAtUtc": "2026-08-01T09:30:00+00:00"
-        }
-      ]
-    },
-    "contains_internal_comment_3": false
-  },
-  "morgan": {
-    "login_status": 204,
-    "verified_subject": "10000000-0000-0000-0000-000000000003",
-    "method": "GET",
-    "path": "/api/incidents/20000000-0000-0000-0000-000000000001",
-    "status": 200,
-    "content_type": "application/json",
-    "body": {
-      "id": "20000000-0000-0000-0000-000000000001",
-      "title": "Підозрілий лист із вкладенням",
-      "description": "Одержано лист нібито від деканату. Вкладення не відкривалося.",
-      "severity": "Medium",
-      "status": "Triaged",
-      "occurredAtUtc": "2026-08-01T08:30:00+00:00",
-      "createdAtUtc": "2026-08-01T09:00:00+00:00",
-      "ownerDisplayName": "Аліса Коваль",
-      "comments": [
-        {
-          "id": "30000000-0000-0000-0000-000000000001",
-          "authorDisplayName": "Морган Литвин",
-          "text": "Заголовки листа передано аналітику.",
-          "createdAtUtc": "2026-08-01T09:30:00+00:00"
-        },
-        {
-          "id": "30000000-0000-0000-0000-000000000003",
-          "authorDisplayName": "Морган Литвин",
-          "text": "Внутрішня навчальна нотатка аналітика.",
-          "createdAtUtc": "2026-08-01T09:45:00+00:00"
-        }
-      ]
-    },
-    "contains_internal_comment_3": true
-  },
-  "alice_foreign_parent_status": 404,
-  "missing_routes": [
+  "source": "verify_lab04_poc.ps1 isolated fixed HTTP PoC",
+  "endpoint": "GET /api/incident-comments/{id}",
+  "assertions": [
     {
-      "method": "DELETE",
-      "path": "/api/incidents/20000000-0000-0000-0000-ffffffffffff",
-      "status": 405,
-      "allow": "GET, HEAD, PUT"
+      "actor": "Anonymous",
+      "target": "Bob public comment",
+      "status": 401
     },
     {
-      "method": "POST",
-      "path": "/api/incidents/20000000-0000-0000-0000-ffffffffffff/export",
-      "status": 405,
-      "allow": "GET, HEAD"
+      "actor": "Alice / Reporter",
+      "target": "own public comment",
+      "status": 200
     },
     {
-      "method": "POST",
-      "path": "/api/incidents/20000000-0000-0000-0000-ffffffffffff/audit",
-      "status": 405,
-      "allow": "GET, HEAD"
+      "actor": "Alice / Reporter",
+      "target": "Bob public comment",
+      "status": 404
+    },
+    {
+      "actor": "Alice / Reporter",
+      "target": "own internal comment",
+      "status": 404
+    },
+    {
+      "actor": "Morgan / Analyst",
+      "target": "Bob public comment",
+      "status": 200
+    },
+    {
+      "actor": "Morgan / Analyst",
+      "target": "Alice internal comment",
+      "status": 200
     }
   ],
-  "captured_at_utc": "2026-10-20T12:50:45.116305+00:00"
+  "result": "passed; parent ownership and internal visibility are enforced by the direct child endpoint"
 }

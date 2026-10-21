@@ -35,11 +35,23 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
+        group.MapDelete("/{id:guid}", DeleteAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPost("/{id:guid}/triage", TriageAsync)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
+
+        var comments = routes.MapGroup("/api/incident-comments").RequireAuthorization();
+        comments.MapGet("/{id:guid}", GetCommentAsync)
+            .Produces<IncidentCommentResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
         return group;
     }
 
@@ -110,6 +122,53 @@ public static class IncidentEndpoints
         return Results.NoContent();
     }
 
+    private static async Task<IResult> DeleteAsync(
+        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
+        SecureLabDbContext db, CancellationToken cancellationToken)
+    {
+        var context = accessRules.From(httpContext.User);
+        if (!context.IsReporter) return Forbidden();
+
+        var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (incident is null) return NotFound();
+        var decision = accessRules.Delete(context, incident.OwnerUserId);
+        if (decision != IncidentAccessDecision.Allow) return Denied(decision);
+
+        db.Incidents.Remove(incident);
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    private static async Task<IResult> GetCommentAsync(
+        Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
+        SecureLabDbContext db, CancellationToken cancellationToken)
+    {
+        var context = accessRules.From(httpContext.User);
+        if (accessRules.ReadScope(context) == IncidentReadScope.Forbidden) return Forbidden();
+
+        var comment = await db.IncidentComments
+            .AsNoTracking()
+            .Where(item => item.Id == id)
+            .Select(item => new
+            {
+                item.IsInternal,
+                OwnerUserId = item.Incident.OwnerUserId,
+                Response = new IncidentCommentResponse(
+                    item.Id,
+                    item.Author.DisplayName,
+                    item.Text,
+                    item.CreatedAtUtc)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (comment is null) return CommentNotFound();
+
+        var decision = accessRules.Read(context, comment.OwnerUserId);
+        if (decision != IncidentAccessDecision.Allow) return DeniedComment(decision);
+        if (comment.IsInternal && !context.IsAnalyst) return CommentNotFound();
+
+        return Results.Ok(comment.Response);
+    }
+
     private static async Task<IResult> TriageAsync(
         Guid id, HttpContext httpContext, IncidentAccessRules accessRules,
         SecureLabDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
@@ -169,8 +228,14 @@ public static class IncidentEndpoints
     private static IResult Denied(IncidentAccessDecision decision) =>
         decision == IncidentAccessDecision.NotFound ? NotFound() : Forbidden();
 
+    private static IResult DeniedComment(IncidentAccessDecision decision) =>
+        decision == IncidentAccessDecision.NotFound ? CommentNotFound() : Forbidden();
+
     private static IResult NotFound() => Results.Problem(title: "Інцидент не знайдено",
         detail: "Запитаний інцидент відсутній.", statusCode: StatusCodes.Status404NotFound);
+
+    private static IResult CommentNotFound() => Results.Problem(title: "Коментар не знайдено",
+        detail: "Запитаний коментар відсутній.", statusCode: StatusCodes.Status404NotFound);
 
     private static IResult Forbidden() => Results.Problem(title: "Доступ заборонено",
         detail: "Операція не дозволена для поточного користувача.", statusCode: StatusCodes.Status403Forbidden);

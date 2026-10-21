@@ -11,8 +11,9 @@ endpoint з п. 10 зберігається лише в приватній ло�
   `NameIdentifier`; ролі — з server-issued role claims Identity.
 - Власник Incident — `Incident.OwnerUserId`. Ідентифікатор із URL визначає
   ресурс для завантаження, але ніколи не є доказом права доступу.
-- Reporter має owner-only read і update. Analyst читає всі Incident для
-  аналізу, але не змінює content. Administrator не має автоматичних прав.
+- Reporter має owner-only read, update і delete. Analyst читає всі Incident
+  для аналізу, але не змінює content і не видаляє їх. Administrator не має
+  автоматичних прав.
 - Для рядків list/search/summary owner scope накладається в SQL до
   сортування, `Take`, проєкції та `GroupBy`.
 
@@ -26,18 +27,19 @@ endpoint з п. 10 зберігається лише в приватній ло�
 | Деталі: `GET /api/incidents/{id}` | Достатній, головна protected action | `401`, без redirect | owner `200`; чужий `404`; internal comments не повертаються | `200` для наявного Incident, internal comments повертаються | `403` | Так для Reporter | Centralized resource decision. Fixed PoC: Alice own `200`, foreign/missing однакові `404`, Morgan `200`. |
 | Створення: `POST /api/incidents` | Успадкований ЛР 03 | `401`, без redirect | `201`, owner визначає сервер | `201`, owner визначає сервер | `403` | Новий owner визначається сервером | Існуючий маршрут отримав явну рольову перевірку; Administrator deny покрито regression test. |
 | Зміна content: `PUT /api/incidents/{id}` | Добрий | `401`, без redirect | owner `204`; чужий `404`; лише title/description | `403`, навіть для доступного Incident | `403` | Так для Reporter | Centralized resource decision перед validation, tracked mutation і `SaveChanges`. Fixed PoC: foreign `404` без зміни Bob; owner update та `400` для protected fields пройшли. |
-| Видалення Incident | Добрий | deny; delete HTTP-flow відсутній | deny; права delete не надано | deny; права delete не надано | deny; права delete не надано | Було б так для видимості parent | У cumulative state немає DELETE endpoint; за правилом «нових endpoint-ів не створюйте» операцію не додано. Це явний deny, а не неперевірений allow. |
+| Видалення: `DELETE /api/incidents/{id}` | Добрий | `401`, без redirect | owner `204`; чужий `404`, без зміни ресурсу | `403` | `403` | Так для Reporter | `IncidentAccessRules.Delete` виконується до `Remove`/`SaveChanges`; A-04 перевіряє foreign deny і незмінність Bob, позитивна регресія — owner delete disposable Incident. |
 | Privileged transition: `POST /api/incidents/{id}/triage` | Добрий | `401`, без redirect | owner `403`; чужий Incident `404`; owner не має винятку | `204` лише для `New → Triaged`; інший status `409` | `403` | Лише для concealment чужого ресурсу від Reporter; ownership не надає transition | Реалізовано у `IncidentAccessRules.Triage` до mutation; server сам встановлює `Triaged`. Deny створює structured `incident.triage.denied` без title/body. A-06/A-07 та audit traceId покриті integration tests і fixed PoC. |
-| Internal comment | Добрий | `401` через details | owner details `200`, internal comment не включається | дозволений details `200`, internal comment включається | `403` разом з details | Так для parent read; internal rule не залежить від автора comment | `IncidentComment` — child resource. У cumulative state його єдиний HTTP-шлях — проєкція details; direct child identifier endpoint не створювався. Регресійний тест перевіряє обидві проєкції. |
+| Child read: `GET /api/incident-comments/{id}` | Добрий | `401`, без redirect | public comment власного Incident `200`; comment чужого parent або internal comment `404` | `200` для public та internal comment доступного parent | `403` | Так для parent read; internal rule не залежить від автора comment | Handler завантажує comment разом із `Incident.OwnerUserId`, застосовує `IncidentAccessRules.Read`, а потім `IsInternal`; A-12 перевіряє Alice → comment-2 Bob `404`, Morgan → comment-2 `200` і internal visibility. |
 | Export/audit | Відмінний лише якщо flow існує | deny; HTTP-flow відсутній | deny; права не надано | deny; права не надано | deny; права не надано | Не застосовується без ресурсу | Export/audit endpoint у cumulative state відсутній, тому не вигадувався для ЛР 04. |
 
 ## HTTP-відмови
 
 1. `401 Unauthorized` — немає authenticated principal; API не повертає `302`.
 2. `404 Not Found` — authenticated Reporter звертається до чужого Incident
-   або до відсутнього коректного GUID у details чи existing update. Обидві
-   гілки використовують один helper і мають однакове тіло після вилучення
-   `traceId` / `requestId`.
+   або до відсутнього коректного GUID у details, update чи delete. Для direct
+   comment `404` також приховує child чужого parent і internal comment від
+   Reporter. Обидві гілки Incident використовують один helper і мають однакове
+   тіло після вилучення `traceId` / `requestId`.
 3. `403 Forbidden` — ресурс доступний, але operation не надано цій ролі:
    Analyst update або Administrator читання.
 4. `400 Bad Request` — update містить невідомі/protected JSON-поля, наприклад
@@ -55,11 +57,11 @@ Incident міг бути розкритий через назву у search аб
 ## Межі mutation
 
 `PUT` приймає лише `title` і `description`; id, owner, severity, status та
-службовий час визначає сервер. Рішення доступу виконується до будь-якої зміни
-tracked entity. Окремі delete, direct-child та export endpoints у vulnerable
-state були відсутні; за вимогою ЛР 04 їх не створено. У матриці для них
-зафіксовано явний deny або відсутність HTTP-flow, щоб їх не видавали за
-реалізоване authorization coverage.
+службовий час визначає сервер. `DELETE` отримує тільки id у route та перед
+`Remove` виконує те саме resource-based owner decision. Child read не приймає
+parent id із клієнта: handler отримує parent owner через relationship comment →
+incident і лише потім вирішує доступ. Export/audit endpoint відсутній, бо він
+не був частиною cumulative state.
 
 ## Privileged action: triage (п. 9)
 

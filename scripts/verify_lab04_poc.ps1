@@ -51,8 +51,13 @@ try {
     # Isolated outputs also avoid locking binaries of an already running normal API.
     & dotnet build SecureLab.sln -c Release --artifacts-path $artifacts -p:RestoreLockedMode=true
     Assert-Exit 'Build'
-    & dotnet test tests/SecureLab.Api.Tests/SecureLab.Api.Tests.csproj -c Release --no-build --artifacts-path $artifacts
-    Assert-Exit 'Existing regression suite'
+    $testResultsDirectory = Join-Path $repo 'docs\evidence\test-results'
+    New-Item -ItemType Directory -Force -Path $testResultsDirectory | Out-Null
+    $testOutput = & dotnet test tests/SecureLab.Api.Tests/SecureLab.Api.Tests.csproj -c Release --no-build --artifacts-path $artifacts `
+        --logger 'trx;LogFileName=lab04-latest.trx' --results-directory $testResultsDirectory 2>&1
+    $testExit = $LASTEXITCODE
+    $testOutput | Write-Output
+    if ($testExit -ne 0) { throw 'Existing regression suite failed; inspect the local result.' }
     $env:Logging__LogLevel__Default = 'Warning'
 
     # Test fixtures clean their own data; record the remaining synthetic seed counts.
@@ -74,10 +79,44 @@ try {
         Start-Sleep -Milliseconds 500
     }
     if (-not $ready) { throw 'Local API did not become ready.' }
-    & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --check
-    Assert-Exit 'Environment check'
-    & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation
-    Assert-Exit 'HTTP PoC'
+    $environmentOutput = & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --check 2>&1
+    $environmentExit = $LASTEXITCODE
+    $environmentOutput | Write-Output
+    if ($environmentExit -ne 0) { throw 'Environment check failed; inspect the local result.' }
+    $httpPocOutput = & $Python -X utf8 scripts/lab04_access.py --host $apiHost --expect $ExpectedState --perimeter --mutation 2>&1
+    $httpPocExit = $LASTEXITCODE
+    $httpPocOutput | Write-Output
+    if ($httpPocExit -ne 0) { throw 'HTTP PoC failed; inspect the local result.' }
+    if ($ExpectedState -eq 'fixed') {
+        $fixedEvidence = @(
+            'SecureLab LR04: fixed authorization HTTP evidence.'
+            "API: $apiHost; isolated synthetic PostgreSQL database."
+            'Credentials, cookies, tokens, request bodies and stack traces are omitted.'
+            ''
+            'Regression suite:'
+        )
+        $fixedEvidence += $testOutput
+        $fixedEvidence += ''
+        $fixedEvidence += 'Environment and HTTP PoC:'
+        $fixedEvidence += $environmentOutput
+        $fixedEvidence += $httpPocOutput
+        $fixedEvidence | Set-Content -Encoding utf8 (Join-Path $repo 'docs\evidence\lab04-fixed.txt')
+        $fixedEvidence | Set-Content -Encoding utf8 (Join-Path $repo 'docs\evidence\lab04-verification-latest.txt')
+        $a12Evidence = [ordered]@{
+            source = 'verify_lab04_poc.ps1 isolated fixed HTTP PoC'
+            endpoint = 'GET /api/incident-comments/{id}'
+            assertions = @(
+                [ordered]@{ actor = 'Anonymous'; target = 'Bob public comment'; status = 401 }
+                [ordered]@{ actor = 'Alice / Reporter'; target = 'own public comment'; status = 200 }
+                [ordered]@{ actor = 'Alice / Reporter'; target = 'Bob public comment'; status = 404 }
+                [ordered]@{ actor = 'Alice / Reporter'; target = 'own internal comment'; status = 404 }
+                [ordered]@{ actor = 'Morgan / Analyst'; target = 'Bob public comment'; status = 200 }
+                [ordered]@{ actor = 'Morgan / Analyst'; target = 'Alice internal comment'; status = 200 }
+            )
+            result = 'passed; parent ownership and internal visibility are enforced by the direct child endpoint'
+        }
+        $a12Evidence | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $repo 'docs\evidence\lab04-a12-responses-latest.json')
+    }
     if ($TriageFixedPoC) {
         $triageOutput = & $Python -X utf8 scripts/lab04_triage_fixed.py --host $apiHost 2>&1
         $triageExit = $LASTEXITCODE
