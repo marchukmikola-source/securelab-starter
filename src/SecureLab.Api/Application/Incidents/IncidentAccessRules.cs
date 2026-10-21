@@ -70,6 +70,18 @@ public sealed class IncidentAccessRules
             _ => IncidentAccessDecision.Forbidden
         };
 
+    // Delete is deliberately narrower than read: only the Reporter who owns
+    // the incident receives this mutating right. A foreign Reporter receives
+    // the same concealment decision as for details and update.
+    public IncidentAccessDecision Delete(IncidentAccessContext context, Guid ownerUserId) =>
+        context switch
+        {
+            { HasSubject: true, IsReporter: true, SubjectId: var subjectId } when subjectId == ownerUserId
+                => IncidentAccessDecision.Allow,
+            { HasSubject: true, IsReporter: true } => IncidentAccessDecision.NotFound,
+            _ => IncidentAccessDecision.Forbidden
+        };
+
     // Triage is a privileged operation: ownership never substitutes for the
     // Analyst role. A foreign Reporter receives the same concealment decision
     // as for details and update.

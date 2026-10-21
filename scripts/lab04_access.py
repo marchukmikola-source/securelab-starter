@@ -13,6 +13,9 @@ import urllib.request
 ALICE = "20000000-0000-0000-0000-000000000001"
 BOB = "20000000-0000-0000-0000-000000000002"
 MISSING = "20000000-0000-0000-0000-ffffffffffff"
+ALICE_PUBLIC_COMMENT = "30000000-0000-0000-0000-000000000001"
+BOB_PUBLIC_COMMENT = "30000000-0000-0000-0000-000000000002"
+ALICE_INTERNAL_COMMENT = "30000000-0000-0000-0000-000000000003"
 OBRIEN_TITLE = "O'Brien classroom report"
 SUBJECTS = {
     "alice": "10000000-0000-0000-0000-000000000001",
@@ -87,6 +90,17 @@ def details(client, incident_id, expected, label):
                           "application/problem+json"), label + ": unexpected content type")
     if expected == 200:
         require(result[2]["id"] == incident_id, label + ": wrong resource")
+    return result
+
+
+def comment(client, comment_id, expected, label):
+    result = client.request("/api/incident-comments/" + comment_id)
+    emit(label, result)
+    require(result[0] == expected, label + ": unexpected status")
+    require(result[1] == ("application/json" if expected == 200 else
+                          "application/problem+json"), label + ": unexpected content type")
+    if expected == 200:
+        require(result[2]["id"] == comment_id, label + ": wrong resource")
     return result
 
 
@@ -171,6 +185,17 @@ def run(args, password):
                     "Fixed summary is not restricted to Alice incidents")
         print("a11_summary_scope_verified=true")
 
+        if not vulnerable:
+            # A-12: direct child identifier must be governed by the same
+            # parent Incident read rule as details, plus IsInternal visibility.
+            comment(alice, ALICE_PUBLIC_COMMENT, 200, "A-12 Alice -> own public comment")
+            comment(alice, BOB_PUBLIC_COMMENT, 404, "A-12 Alice -> Bob comment")
+            comment(alice, ALICE_INTERNAL_COMMENT, 404, "A-12 Alice -> own internal comment")
+            comment(morgan, BOB_PUBLIC_COMMENT, 200, "A-12 Morgan -> Bob comment")
+            comment(morgan, ALICE_INTERNAL_COMMENT, 200, "A-12 Morgan -> internal comment")
+            comment(anonymous, BOB_PUBLIC_COMMENT, 401, "A-12 Anonymous -> Bob comment")
+            print("a12_child_parent_scope_and_internal_visibility_verified=true")
+
     if args.mutation:
         own_path = "/api/incidents/" + ALICE
         own_before = details(alice, ALICE, 200, "Positive: Alice reads own before update")[2]
@@ -235,6 +260,34 @@ def run(args, password):
                 require(details(bob, BOB, 200, "Mutation: Bob restores content")[2] == before,
                         "Original response content was not restored")
                 print("original_content_restored=true")
+
+        if not vulnerable:
+            # A-04 also covers the independent DELETE mutation perimeter.
+            delete_before = details(bob, BOB, 200, "Delete: Bob reads before")[2]
+            foreign_delete = alice.request(path, method="DELETE")
+            emit("A-04 Alice deletes Bob", foreign_delete)
+            require(foreign_delete[0] == 404, "Foreign delete must be concealed")
+            require(details(bob, BOB, 200, "Delete: Bob reads after")[2] == delete_before,
+                    "Denied delete changed Bob resource")
+            require(anonymous.request(path, method="DELETE")[0] == 401,
+                    "Anonymous delete must require login")
+            print("foreign_delete_status=404; foreign_delete_state_unchanged=true; anonymous_delete_status=401")
+
+            create_payload = {
+                "title": "LR04 positive owner delete",
+                "description": "Synthetic incident created and removed only by the isolated fixed PoC.",
+                "severity": "Low",
+                "occurredAtUtc": "2026-10-01T12:00:00+00:00",
+            }
+            created = alice.request("/api/incidents", create_payload, method="POST")
+            emit("Positive: Alice creates disposable Incident", created)
+            require(created[0] == 201, "Could not create disposable owner Incident")
+            disposable_id = created[2]["id"]
+            owner_delete = alice.request("/api/incidents/" + disposable_id, method="DELETE")
+            emit("Positive: Alice deletes own disposable Incident", owner_delete)
+            require(owner_delete[0] == 204, "Owner delete was denied")
+            details(alice, disposable_id, 404, "Positive: owner-deleted Incident is absent")
+            print("owner_delete_status=204; owner_delete_verified=true")
 
     print("poc_checks=passed")
     if vulnerable:

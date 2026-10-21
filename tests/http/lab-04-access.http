@@ -5,6 +5,8 @@
 @host = http://localhost:5080
 @aliceId = 20000000-0000-0000-0000-000000000001
 @bobId = 20000000-0000-0000-0000-000000000002
+@bobCommentId = 30000000-0000-0000-0000-000000000002
+@aliceInternalCommentId = 30000000-0000-0000-0000-000000000003
 @missingId = 20000000-0000-0000-0000-ffffffffffff
 
 ### Alice login: 204
@@ -54,6 +56,22 @@ Content-Type: application/json
   "description": "Контрольована навчальна спроба зміни чужого інциденту для PoC ЛР 4."
 }
 
+### A-04: foreign delete Alice -> Bob: 404; перед ним і після нього перевірте GET Bob
+DELETE {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+### A-04: Bob після забороненого DELETE Alice: 200 і без зміни content
+GET {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+### A-12: direct child Bob public comment: Alice отримує 404
+GET {{host}}/api/incident-comments/{{bobCommentId}}
+Accept: application/json
+
+### A-12: власний internal comment: Reporter також отримує 404
+GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
+Accept: application/json
+
 ### Morgan/Analyst login: 204
 POST {{host}}/api/auth/login
 Content-Type: application/json
@@ -62,6 +80,14 @@ Content-Type: application/json
 
 ### A-03R: Analyst читає Alice для аналізу: 200
 GET {{host}}/api/incidents/{{aliceId}}
+Accept: application/json
+
+### A-12: Analyst читає public child comment Bob: 200
+GET {{host}}/api/incident-comments/{{bobCommentId}}
+Accept: application/json
+
+### A-12: Analyst читає internal child comment Alice: 200
+GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
 Accept: application/json
 
 ### Logout: 204
