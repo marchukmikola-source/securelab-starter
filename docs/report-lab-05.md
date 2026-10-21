@@ -35,9 +35,9 @@ Scaffold receipt: `release=lab-05-start-v1`, `base_commit=16061b56d5d1412e20fdc7
 | XSS fixed | `ee57982` | текстове DOM-rendering рішення |
 | CORS fixed | `fc41d05` | вузька Development policy та evidence |
 | CSP fixed | `47ab129` | report-only → enforcement CSP та evidence |
-| Final fixed | annotated tag `v0.5.0` | canonical local state перед private delivery |
+| Final fixed | annotated tag `v0.5.0` | canonical published fixed state після фінального browser retest |
 
-Vulnerable commit не призначений для deployment і не повинен потрапити у відкритий remote. Для передавання сформовано локальний `lab05.bundle`; `git bundle verify lab05.bundle` підтвердив complete history і refs `lab/5-browser-xss` та `v0.5.0`. Тег `v0.5.0` ставиться лише на final fixed commit.
+Vulnerable commit не призначений для deployment і не потрапляє у відкритий remote. На GitHub публікуються лише fixed-гілка `lab/5-browser-xss` та annotated tag `v0.5.0`, побудовані від `v0.4.0`; vulnerable commit не є їхнім предком. Локальний `lab05.bundle` лишається окремим контрольованим DEL-02 артефактом; `git bundle verify` та незалежний clone підтверджують його complete history. Тег `v0.5.0` ставиться лише на фінальний перевірений fixed commit.
 
 ## DEL-03. Browser controls і policy decisions
 
@@ -53,6 +53,10 @@ policy.WithOrigins("http://localhost:4173")
 ```
 
 Middleware виконується після routing і перед authentication/authorization. Після fix `4173` прочитав authenticated list із `status: 200`, `type: "cors"`; `4174` отримав Network `200`, але browser не передав response JavaScript через відсутній ACAO. Після logout `4173` прочитав `401` Problem Details. Отже, CORS — це browser policy читання response, а не механізм authentication чи authorization. Direct `curl` також показав: Origin `4173` одержує ACAO, `4174` — ні, хоча direct HTTP у двох випадках отримує `200`.
+
+### Межі XSS, CORS, CSRF та authorization
+
+XSS у цьому flow виникав, коли browser інтерпретував збережене сервером поле як HTML; його усунуто у DOM sink через text node. CORS визначає, чи надасть browser cross-origin response JavaScript, і не дає API права доступу. CSRF — інша загроза: browser може надсилати cookie за власними правилами, тому state-changing request потребує окремого server-side antiforgery/CSRF control; це тема ЛР 6 і її не підмінено CORS-policy. Authorization лишається server-side рішенням для authenticated principal і конкретного incident: саме воно дало Morgan доступ до дозволеного record, а Bob — `404`. CSP, CORS і safe rendering не замінюють це рішення.
 
 ### CSP та security headers
 
@@ -77,6 +81,23 @@ Total: 99; Passed: 99; Failed: 0; Skipped: 0.
 ```
 
 Browser evidence охоплює vulnerable/fixed XSS DOM FAIL/PASS, public comments, report-only/enforcement CSP, CORS preflight, credential-bound 4173, denied 4174, anonymous `401` і direct HTTP headers.
+
+## Короткі відповіді для захисту
+
+1. Дані з БД можуть походити від користувача, старого коду або зовнішнього import, тому не стають trusted лише через storage.
+2. Source — введення або seed, transformations — JSON, validation, mapping і storage, sink — конкретна browser-операція відображення.
+3. Stored XSS зберігається й виконується при наступному читанні; reflected приходить у поточній відповіді; DOM-based виникає в client-side DOM flow.
+4. Заборона `<script>` не враховує інші HTML/attribute contexts та event handlers, тому не прибирає першопричину unsafe sink.
+5. Для звичайного тексту обирають `textContent`/text node; sanitizer потрібний лише за окремої вимоги приймати обмежений formatted HTML.
+6. Regular expression не може коректно й повно обробити HTML, attributes і URL protocols; у цій роботі sanitizer не потрібний.
+7. Origin складається зі scheme, host і port.
+8. Preflight — автоматичний `OPTIONS`, у якому browser передає origin, запланований method і non-safelisted headers.
+9. API оголошує headers CORS-policy, а browser застосовує SOP/CORS і вирішує, чи віддати response JavaScript.
+10. `curl` не реалізує browser SOP, тому читає HTTP response незалежно від ACAO; browser script без ACAO не може його прочитати.
+11. CORS не перевіряє права користувача та не зупиняє надсилання cookie; authorization і CSRF controls виконуються server-side.
+12. `Access-Control-Allow-Origin: *` заборонено поєднувати з credentialed response, бо credentials потребують exact allowed origin.
+13. CSP обмежує дозволені browser resources/contexts, але не перетворює unsafe `innerHTML` на безпечний текстовий sink.
+14. `nosniff` зменшує MIME-sniffing, `Referrer-Policy` обмежує витік URL, а `frame-ancestors` забороняє небажане embedding/clickjacking.
 
 ## Декларація використання ШІ
 
