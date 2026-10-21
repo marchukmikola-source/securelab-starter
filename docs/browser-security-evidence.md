@@ -83,4 +83,4 @@ DOM-тест: `resources/copyable/description-dom.js` у Chrome Console, record 
 
 ## Фінальна локальна перевірка
 
-Після final CSP state виконано `dotnet test tests/SecureLab.Api.Tests/SecureLab.Api.Tests.csproj --configuration Release --no-build --no-restore --logger "console;verbosity=minimal"`. Результат: `Total: 99`, `Passed: 99`, `Failed: 0`, `Skipped: 0`; test run succeeded за 13.9 s. Перед тестами застосовано локальний reset database, тому тимчасові marker records не вплинули на fixture assertions.
+Після final CSP state виконано `dotnet test tests/SecureLab.Api.Tests/SecureLab.Api.Tests.csproj --configuration Release --no-build --no-restore --logger "console;verbosity=minimal"`. Результат: `Total: 99`, `Passed: 99`, `Failed: 0`, `Skipped: 0`; test run succeeded за 13.9 s. Перед тестами застосовано локальний reset database, тому тимчасові marker records не вплинули на fixture assertions. Локальний `lab05.bundle` перевірено: complete history, refs `lab/5-browser-xss` та annotated tag `v0.5.0` присутні.

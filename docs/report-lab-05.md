@@ -35,9 +35,9 @@ Scaffold receipt: `release=lab-05-start-v1`, `base_commit=16061b56d5d1412e20fdc7
 | XSS fixed | `ee57982` | текстове DOM-rendering рішення |
 | CORS fixed | `fc41d05` | вузька Development policy та evidence |
 | CSP fixed | `47ab129` | report-only → enforcement CSP та evidence |
-| Final fixed | буде визначено commit цього звіту | canonical local state перед тегом `v0.5.0` |
+| Final fixed | annotated tag `v0.5.0` | canonical local state перед private delivery |
 
-Vulnerable commit не призначений для deployment і не повинен потрапити у відкритий remote. Для передавання застосовується приватний repository з доступом викладача або локально перевірений `lab05.bundle`; тег `v0.5.0` ставиться лише на final fixed commit.
+Vulnerable commit не призначений для deployment і не повинен потрапити у відкритий remote. Для передавання сформовано локальний `lab05.bundle`; `git bundle verify lab05.bundle` підтвердив complete history і refs `lab/5-browser-xss` та `v0.5.0`. Тег `v0.5.0` ставиться лише на final fixed commit.
 
 ## DEL-03. Browser controls і policy decisions
 
