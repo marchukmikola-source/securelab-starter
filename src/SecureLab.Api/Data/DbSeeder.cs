@@ -99,6 +99,11 @@ public static class DbSeeder
             UpdatedAtUtc = new DateTimeOffset(2026, 8, 3, 8, 0, 0, TimeSpan.Zero)
         };
 
+        const string lab05Marker =
+            "<img src=x onerror=\""
+            + "document.querySelector('#lab05-marker-target')"
+            + ".setAttribute('data-lab05-marker','executed')\">";
+
         dbContext.Incidents.AddRange(aliceIncident, bobIncident, safeTextIncident);
         dbContext.IncidentComments.AddRange(
             new IncidentComment
@@ -127,6 +132,15 @@ public static class DbSeeder
                 Text = "Внутрішня навчальна нотатка аналітика.",
                 IsInternal = true,
                 CreatedAtUtc = new DateTimeOffset(2026, 8, 1, 9, 45, 0, TimeSpan.Zero)
+            },
+            new IncidentComment
+            {
+                Id = Guid.Parse("30000000-0000-0000-0000-000000000005"),
+                Incident = aliceIncident,
+                Author = morgan,
+                Text = lab05Marker,
+                IsInternal = false,
+                CreatedAtUtc = new DateTimeOffset(2026, 8, 1, 9, 35, 0, TimeSpan.Zero)
             });
         dbContext.IncidentStatusHistory.Add(
             new IncidentStatusHistory
