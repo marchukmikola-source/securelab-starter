@@ -12,13 +12,17 @@ Receipt `.scaffolds/lab-05.json`: `release=lab-05-start-v1`, `base_commit=16061b
 
 ## Гіпотеза й REG-XSS-01 (Для всіх)
 
-Карта `Description`: … Гіпотеза source → storage → response → sink/context: … Передумови, локальний користувач, Guid запису, marker із `resources/lab05-marker.txt`, команди reset/start і create/read: …
+Карта `Description` і другий flow `IncidentComment.Text`: [`docs/source-to-sink.md`](source-to-sink.md). Гіпотеза: значення з `textarea[name="description"]` у `/browser-lab.html` надсилається як JSON field `description`, зберігається як `Incident.Description` у `incidents.description`, повертається як `IncidentDetailsResponse.description` і передається у `#description.innerHTML` як HTML context. Отже, за наявності HTML-подібних символів браузер може інтерпретувати їх як markup, а не як текст. Передумови PoC: локальний вхід Alice, створений нею test incident, marker виключно з `resources/lab05-marker.txt`, Network-доказ POST і подальшого GET, Elements-доказ для `#description` та `#lab05-marker-target`. Значення cookie та паролі не фіксуються.
+
+Vulnerable marker record: `dd114e4c-bc28-4b00-91f0-a2946f3ea193`, створений Alice через `/browser-lab.html`. POST `/api/incidents` повернув `201`; наступний GET details повернув `200` і той самий marker у response JSON. У Elements `#description` містив створений `<img>`, а `#lab05-marker-target` одержав `data-lab05-marker="executed"`; browser виконав локальний запит до `/x`. У незалежній сесії Morgan той самий GET повернув `200`, повторно утворив `<img>` і встановив marker у `executed`. Bob для того самого Guid одержав `404`, не одержав response JSON із description, а marker у новій сесії лишився `null`. Це є controlled local stored-XSS PoC: Alice створила запис, сервер його зберіг, а Morgan відобразив його окремо від сесії Alice; authorization ЛР 04 зберегла ізоляцію Bob.
+
+Після локального reset створено новий Description marker-record для fixed retest: `47e88681-dd0e-49f9-ae70-56fcb1cb57fa`. Його не слід видаляти або повторно reset-ити до завершення fixed DOM та HTTP перевірок.
 
 | Спостереження | До fix | Після fix | Посилання на доказ |
 |---|---|---|---|
-| Значення в БД/API | | | |
-| DOM основного Description | | | |
-| Дія marker | | | |
+| Значення в БД/API | POST `201`, а наступний GET `200` повернув marker у `description` для record `dd114e4c-bc28-4b00-91f0-a2946f3ea193` | GET `200` для fixed record `47e88681-dd0e-49f9-ae70-56fcb1cb57fa` зберіг marker у JSON | Network POST/GET screenshot; fixed Network response ще зафіксувати |
+| DOM основного Description | `#description` містив `<img>` | Marker відображено повним буквальним рядком; дочірнього `<img>` немає | Fixed UI screenshot отримано; Elements screenshot ще зафіксувати |
+| Дія marker | `data-lab05-marker="executed"` для Alice та незалежної сесії Morgan | Marker має залишатися `null` | Elements / Console diagnostic screenshot ще зафіксувати |
 | Апостроф/лапки, 5 < 7, Unicode, HTML-like рядок | | | |
 | Довжина за власними правилами ЛР 2 | | | |
 | Вікно Morgan: GET і перевірка marker; контроль Bob | | | |
