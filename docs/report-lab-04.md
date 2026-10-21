@@ -4,7 +4,13 @@
 відтворювані vulnerable states, серверне виправлення для read/update/delete і
 direct child comment, regression tests, HTTP PoC та контрольований PoC
 privileged action `triage`. Фінальний fixed state збережено в гілці
-`lab/4-authorization` і позначено анотованим тегом `v0.4.2`.
+`lab/4-authorization` і позначено анотованим тегом `v0.4.0`.
+
+Git-ланцюжок пояснює позначки у ранніх доказах: `64889c11` вносить fixed
+policy triage, `93d15b10` є його нащадком і вже містить цю зміну, а пізніший
+`d3c398d` додає `DELETE` та direct child comment. Тег `v0.4.0` вказує на
+підсумковий перевірений commit після цих змін; control run завершився з
+`101 passed, 0 failed, 0 skipped`.
 
 ## Пункти 2–3: контракт доступу
 
@@ -135,6 +141,12 @@ Content-Type: application/json
 { "title": "LR04 controlled update by Alice", "description": "..." }
 ```
 
+Часові мітки скріншотів відображають момент фіксації доказів. Fixed кадри
+створено раніше 19.10, а vulnerable PoC навмисно повторено пізніше того самого
+дня в приватній гілці лише для порівняльної частини звіту. Архівний network
+кадр від 18.10 підтверджує той самий fixed контракт `404` і не позначає дату
+внесення виправлення.
+
 У vulnerable state другий `GET` повертав `200`, а `PUT` — `204`: це і є
 IDOR/BOLA, бо Alice не змінювала principal, а змінила тільки selector ресурсу.
 
@@ -208,7 +220,7 @@ password, cookie, token або `Set-Cookie` values.
 | A-03 / A-10 Alice -> Bob і missing | той самий client: `404`, `application/problem+json`, нормалізовані JSON тотожні |
 | A-03R Morgan/Analyst -> Alice/Bob | `200` |
 | A-04 Alice update/delete Bob | обидва `404`; content Bob не змінився |
-| A-05 / A-11 list, search, summary Reporter | лише власна множина; `search?q=O'Brien` → `200 []`; Medium=1, Low=2 |
+| A-05 / A-11 list, search, summary Reporter | лише власна множина; `search?q=O'Brien` → `200 []`; Critical=0, High=0, Medium=1, Low=2 |
 | A-08b protected fields update | `400`, стан не змінився |
 | A-12 direct child endpoint | Alice → `comment-2` Bob `404`; Alice → own internal `404`; Morgan → `comment-2` та internal `200` |
 
@@ -448,7 +460,7 @@ Assert.All(entry.Fields.Keys, key => Assert.Contains(key, allowedKeys));
 | A-08b | Добрий | owner update з extra `ownerUserId`, `status`, `severity`, `role` | `400`, повний state без зміни | `400`; повторні details збігаються |
 | A-09 | Добрий | Reporter denied triage | safe audit з response trace | allowlist structured fields; audit `TraceId` = Problem Details `traceId` |
 | A-10 | Усі | одна cookie Alice: Bob details і missing GUID | `404/404`, рівні нормалізовані JSON | два збережені JSON у `lab04-fixed.txt`; `normalized_bodies_equal=true` |
-| A-11 | Відмінний | Alice search і severity-summary | тільки own scope | `O'Brien` → `200 []`; summary Medium=1, Low=2 |
+| A-11 | Відмінний | Alice search і severity-summary | тільки own scope | `O'Brien` → `200 []`; summary Critical=0, High=0, Medium=1, Low=2 |
 | A-12 | Добрий | Alice direct GET `comment-2` Bob | child не оминає parent decision | `404`; Morgan читає `comment-2` і internal comment з `200`; `ChildComment_EnforcesParentReadAndInternalVisibilityRules` |
 
 Повний відтворюваний fixed прогін з кореня проєкту:
