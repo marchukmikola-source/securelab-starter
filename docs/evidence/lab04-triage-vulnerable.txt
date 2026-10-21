@@ -1,0 +1,18 @@
+SecureLab LR04 point 10: controlled local vertical-privilege PoC.
+API: http://localhost:5084; isolated synthetic PostgreSQL database.
+Credentials, cookies and raw response headers are omitted.
+
+alice_login_status=204
+alice_verified_role=Reporter
+{"scenario": "P10 Alice reads own New Incident", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000005", "status": "New", "title": "Перевірка USB навчальної мережі"}}
+{"scenario": "P10 permitted Reporter own content update", "status": 204, "contentType": "text/plain"}
+permitted_owner_operation_status=204
+{"scenario": "P10 Reporter invokes privileged triage", "status": 204, "contentType": "text/plain"}
+{"scenario": "P10 Alice reads after privileged transition", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000005", "status": "Triaged", "title": "Перевірка USB навчальної мережі"}}
+vertical_privilege_escalation_reproduced=true
+{"scenario": "P10 role probe resource before", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000003", "status": "New", "title": "Перевірка журналу комп'ютерного класу"}}
+{"scenario": "P10 Reporter triage with forged JSON role", "status": 204, "contentType": "text/plain"}
+{"scenario": "P10 role probe resource after", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000003", "status": "Triaged", "title": "Перевірка журналу комп'ютерного класу"}}
+forged_role_body_status=204; same_as_empty_body=true
+root_cause=no_server_side_role_or_policy_decision_for_Incident.Triage
+p10_vulnerable_poc_checks=passed

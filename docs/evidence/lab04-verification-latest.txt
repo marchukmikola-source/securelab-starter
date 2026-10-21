@@ -1,0 +1,69 @@
+SecureLab LR04: fixed authorization HTTP evidence.
+API: http://localhost:5084; isolated synthetic PostgreSQL database.
+Credentials, cookies, tokens, request bodies and stack traces are omitted.
+
+Regression suite:
+Test run for F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab04-poc-88e40f54116e4d68a6ae152407cdb1dc\artifacts\bin\SecureLab.Api.Tests\release\SecureLab.Api.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+WARNING: Overwriting results file: F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\docs\evidence\test-results\lab04-latest.trx
+Results File: F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\docs\evidence\test-results\lab04-latest.trx
+
+Passed!  - Failed:     0, Passed:   101, Skipped:     0, Total:   101, Duration: 14 s - SecureLab.Api.Tests.dll (net10.0)
+
+Environment and HTTP PoC:
+seed_password_present=true
+login_json_roundtrip=true
+expect=fixed
+alice_login_status=204
+alice_verified_subject=10000000-0000-0000-0000-000000000001
+bob_login_status=204
+bob_verified_subject=10000000-0000-0000-0000-000000000002
+morgan_login_status=204
+morgan_verified_subject=10000000-0000-0000-0000-000000000003
+{"scenario": "A-02 Alice -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-03 Alice -> Bob", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-cf5eb4d95a99230186bf9b3540fa7128-d9a57cc2c7b3f005-00"}}
+alice_same_cookie_for_own_and_foreign=true
+{"scenario": "A-10 Alice -> missing", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-10ca9156948a1450e6c394291c6a9032-963ba819fe690e37-00"}}
+A-10 foreign_normalized_body={"detail": "Запитаний інцидент відсутній.", "status": 404, "title": "Інцидент не знайдено", "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5"}
+A-10 missing_normalized_body={"detail": "Запитаний інцидент відсутній.", "status": 404, "title": "Інцидент не знайдено", "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5"}
+A-10 normalized_bodies_equal=true
+{"scenario": "Bob -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "Bob -> Alice", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-f95f012ca380d31cea64477801ec53f4-091fc43ee54cd36e-00"}}
+{"scenario": "A-03R Morgan -> Alice", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "Morgan -> Bob", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-01 Anonymous -> Bob", "status": 401, "contentType": "application/problem+json", "body": {"title": "Потрібна автентифікація.", "status": 401}}
+{"scenario": "A-05 Alice list", "status": 200, "containsBob": false, "count": 3}
+{"scenario": "A-11 Alice search Bob title", "status": 200, "containsBob": false, "count": 0}
+{"scenario": "A-11 Alice search O'Brien", "status": 200, "containsOBrien": false, "count": 0}
+{"scenario": "A-11 Alice summary", "status": 200, "counts": [{"severity": "Critical", "count": 0}, {"severity": "High", "count": 0}, {"severity": "Medium", "count": 1}, {"severity": "Low", "count": 2}]}
+a11_summary_scope_verified=true
+{"scenario": "A-12 Alice -> own public comment", "status": 200, "contentType": "application/json", "body": {"id": "30000000-0000-0000-0000-000000000001"}}
+{"scenario": "A-12 Alice -> Bob comment", "status": 404, "contentType": "application/problem+json", "body": {"title": "Коментар не знайдено", "status": 404, "traceId": "00-ef69384c928cf521276446c465435e05-ae164b1f4877948f-00"}}
+{"scenario": "A-12 Alice -> own internal comment", "status": 404, "contentType": "application/problem+json", "body": {"title": "Коментар не знайдено", "status": 404, "traceId": "00-8c47b05bfa10f05f1ee5a26e0441f4da-37e5af5a0cbd06fc-00"}}
+{"scenario": "A-12 Morgan -> Bob comment", "status": 200, "contentType": "application/json", "body": {"id": "30000000-0000-0000-0000-000000000002"}}
+{"scenario": "A-12 Morgan -> internal comment", "status": 200, "contentType": "application/json", "body": {"id": "30000000-0000-0000-0000-000000000003"}}
+{"scenario": "A-12 Anonymous -> Bob comment", "status": 401, "contentType": "application/problem+json", "body": {"title": "Потрібна автентифікація.", "status": 401}}
+a12_child_parent_scope_and_internal_visibility_verified=true
+{"scenario": "Positive: Alice reads own before update", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+{"scenario": "A-02b Alice updates own Incident", "status": 204, "contentType": "text/plain"}
+{"scenario": "Positive: Alice reads own after update", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "LR04 positive owner update", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+owner_update_status=204; owner_content_changed=true
+{"scenario": "Positive: Alice restores own content", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000001", "title": "Підозрілий лист із вкладенням", "ownerDisplayName": "Аліса Коваль", "status": "Triaged"}}
+owner_content_restored=true
+{"scenario": "Mutation: Bob reads before", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-04 Alice updates Bob", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-a1dd953b5aab6d49640acf96c74d9a32-1fb24be702d6312c-00"}}
+{"scenario": "Mutation: Bob reads after", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+foreign_content_changed=false
+protected_response_fields_unchanged=true
+anonymous_update_status=401
+{"scenario": "Mutation: Bob reads after forged request", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+forged_fields_status=400; rejected_request_state_unchanged=true
+{"scenario": "Delete: Bob reads before", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+{"scenario": "A-04 Alice deletes Bob", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-5f6c46097357e91bd0f53c073fc9a6c1-5eb250e65067674e-00"}}
+{"scenario": "Delete: Bob reads after", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000002", "title": "Невідома спроба входу", "ownerDisplayName": "Боб Мельник", "status": "InProgress"}}
+foreign_delete_status=404; foreign_delete_state_unchanged=true; anonymous_delete_status=401
+{"scenario": "Positive: Alice creates disposable Incident", "status": 201, "contentType": "application/json", "body": {"id": "6ec143d3-a91d-40e5-b2b1-35c3d8c77488", "title": "LR04 positive owner delete", "status": "New"}}
+{"scenario": "Positive: Alice deletes own disposable Incident", "status": 204, "contentType": "text/plain"}
+{"scenario": "Positive: owner-deleted Incident is absent", "status": 404, "contentType": "application/problem+json", "body": {"title": "Інцидент не знайдено", "status": 404, "traceId": "00-4a6abb0b4e900571ef6277352ed0ee83-d41c3ea4add9b833-00"}}
+owner_delete_status=204; owner_delete_verified=true
+poc_checks=passed

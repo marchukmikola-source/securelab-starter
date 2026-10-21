@@ -1,0 +1,17 @@
+SecureLab LR04 points 11-12: fixed triage HTTP and audit evidence.
+API: http://localhost:5084; isolated synthetic PostgreSQL database.
+Credentials, cookies, tokens, request body and stack traces are omitted.
+
+alice_login_status=204
+morgan_login_status=204
+{"scenario": "P11 Reporter reads target before deny", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000003", "title": "Перевірка журналу комп'ютерного класу", "status": "New"}}
+{"scenario": "P11 Reporter forged-body triage", "status": 403, "contentType": "application/problem+json", "body": {"title": "Доступ заборонено", "status": 403, "traceId": "00-79533a1ca5e862b715396cb82bbfb6b9-ff098668a6089a75-00"}}
+denied_trace_id=00-79533a1ca5e862b715396cb82bbfb6b9-ff098668a6089a75-00
+{"scenario": "P11 Reporter reads target after deny", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000003", "title": "Перевірка журналу комп'ютерного класу", "status": "New"}}
+{"scenario": "P11 Analyst triage", "status": 204, "contentType": "text/plain"}
+{"scenario": "P11 Analyst reads target after allow", "status": 200, "contentType": "application/json", "body": {"id": "20000000-0000-0000-0000-000000000003", "title": "Перевірка журналу комп'ютерного класу", "status": "Triaged"}}
+{"scenario": "P11 Analyst repeats triage", "status": 409, "contentType": "application/problem+json", "body": {"title": "Недійсний перехід статусу", "status": 409, "traceId": "00-d71561f319b248f863a230bcf5d22980-b1a6ae8227ac598e-00"}}
+triage_fixed_contract_verified=true
+
+audit_log_event=      incident.triage.denied Incident.Triage 10000000-0000-0000-0000-000000000001 20000000-0000-0000-0000-000000000003 Denied 10/21/2026 11:01:38 +00:00 00-79533a1ca5e862b715396cb82bbfb6b9-ff098668a6089a75-00
+audit_trace_matches_response=true

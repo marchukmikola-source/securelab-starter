@@ -1,0 +1,25 @@
+SecureLab LR04: browser client evidence, 2026-10-18
+
+Local browser client: http://localhost:5080
+Authenticated subject: Alice / Reporter (credentials omitted).
+
+Allowed state:
+- Alice selected her own Incident "Підозрілий лист із вкладенням" from the scoped list.
+- The details block rendered its title, Medium · Triaged metadata, owner "Аліса Коваль",
+  description and allowed comment through createTextElement(...).
+
+Denied state:
+- The same authenticated browser session requested the fixed Bob Incident id through
+  window.loadIncidentDetails(...), the function used by resources/browser/probe-bob-details.js.
+- The details block rendered exactly: "Помилка: Інцидент не знайдено".
+- The message is the Problem Details title from the server's safe 404 response; it is
+  written through detailsElement.textContent, with no client-side authorization decision.
+
+The browser screenshots of both states were captured during the local verification.
+
+Symmetric Bob check:
+- After Bob / Reporter signed in, the scoped list contained exactly two Bob Incident.
+- Bob opened "Невідома спроба входу" and the details block rendered its High · InProgress
+  metadata, owner "Боб Мельник", description and allowed comment.
+- Alice Incident was absent from Bob's browser list. The fixed HTTP PoC separately records
+  the exact direct request Bob -> Alice as the same safe `404` response.
