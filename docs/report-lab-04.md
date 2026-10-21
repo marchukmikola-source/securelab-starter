@@ -7,10 +7,13 @@ privileged action `triage`. Фінальний fixed state збережено в
 `lab/4-authorization` і позначено анотованим тегом `v0.4.0`.
 
 Git-ланцюжок пояснює позначки у ранніх доказах: `64889c11` вносить fixed
-policy triage, `93d15b10` є його нащадком і вже містить цю зміну, а пізніший
-`d3c398d` додає `DELETE` та direct child comment. Тег `v0.4.0` вказує на
-підсумковий перевірений commit після цих змін; control run завершився з
-`101 passed, 0 failed, 0 skipped`.
+policy triage, `93d15b10` є його нащадком і вже містить цю зміну. Повний
+implementation fixed hash `d3c398d930c7d3ccd97882f38519a3cb02b59338` додає
+`DELETE` та direct child comment; це саме code commit, на якому закрито
+відсутні routes. Тег `v0.4.0` позначає пізніший verified final state з доказами;
+control run 21.10.2026 завершився з `101 passed, 0 failed, 0 skipped`.
+
+Публічний fixed ref: https://github.com/marchukmikola-source/securelab-starter/tree/lab/4-authorization . Передавання виконано прямим `git push` гілки `lab/4-authorization` і анотованого тегу `v0.4.0`. Merge request не створювався, а `main` не зливався: лабораторна подається й перевіряється в ізольованій гілці; це не є твердженням про deployment у main.
 
 ## Пункти 2–3: контракт доступу
 
@@ -209,8 +212,11 @@ Incident для Reporter дає `404` ще до validation і `SaveChangesAsync`
 password, cookie, token або `Set-Cookie` values.
 
 Фактичний isolated run 21.10.2026 завершився з `0` warnings, `0` errors та
-`101 passed, 0 failed, 0 skipped`; його знеособлений результат збережено в
-`docs/evidence/lab04-fixed.txt`.
+`101 passed, 0 failed, 0 skipped`; test duration — 14 s. Команда скрипта створила
+`docs/evidence/test-results/lab04-latest.trx` (101 executed/passed, 0 failed), а
+знеособлений console/HTTP output — `docs/evidence/lab04-fixed.txt`; обидва
+артефакти мають час запису 21.10.2026 близько 14:01. Цей запуск містить
+`DELETE` і direct child A-12, тому не змішується зі старим run на 99 тестів.
 
 | Перевірка | Результат fixed PoC |
 |---|---|
@@ -399,8 +405,12 @@ await db.SaveChangesAsync(ct);
 Audit пишеться через structured logger `SecureLab.Api.Audit.IncidentTriage`:
 `EventName=incident.triage.denied`, `Operation=Incident.Triage`, verified
 `ActorUserId`, `IncidentId`, `Result=Denied`, server-generated
-`OccurredAtUtc` та request `TraceId`. Пароль, cookie, token, body, title,
-description і stack trace не записуються. Реальний HTTP-доказ містить `403`,
+`OccurredAtUtc` та request `TraceId`. Назва події описує доменну дію і її
+наслідок: відмовлено саме у transition `Incident.Triage`. Загальна
+`authorization.denied` втратила б контекст Incident і конкретної privileged
+операції; сам authorization outcome однозначно зберігається у полі
+`Result=Denied`. Пароль, cookie, token, body, title, description і stack trace
+не записуються. Реальний HTTP-доказ містить `403`,
 незмінний `New`, `204` Analyst, `409` повторної transition та рівний trace id
 у response й audit: [lab04-triage-fixed.txt](evidence/lab04-triage-fixed.txt).
 
@@ -469,9 +479,14 @@ Assert.All(entry.Fields.Keys, key => Assert.Contains(key, allowedKeys));
 .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -TriageFixedPoC
 ```
 
-## Використання ШІ
+## Використання ШІ та перевірка матеріалу
 
 Codex використано для звірення вимог, підготовки контрольованого сценарію,
 реалізації серверної авторизації, запуску перевірок і оформлення доказів.
-Автору роботи потрібно вміти пояснити відмінність між authentication,
-ownership та дозволом на конкретну операцію.
+Матеріал, запропонований ШІ, не приймався як доказ сам по собі: автор звірив
+контракти з методичкою, переглянув `git diff`, перевірив server-side decision
+у `IncidentAccessRules` та endpoint-ах, а твердження звіту прийняв лише після
+HTTP/Browser/PowerShell запусків і TRX. Кожен суттєвий висновок у звіті має
+відтворювану команду, status code, test або файл evidence; секрети не
+передавались у Git чи до звіту. Автору роботи потрібно вміти пояснити
+відмінність між authentication, ownership та дозволом на конкретну операцію.
