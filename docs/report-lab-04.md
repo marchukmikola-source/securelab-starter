@@ -1,8 +1,10 @@
 # ЛР 04: контроль доступу до Incident
 
-Дата останньої fixed-перевірки: 19.10.2026. Виконано пункти 2–13: матрицю доступу,
-відтворювані vulnerable states, серверне виправлення для read/update,
-regression tests, HTTP PoC та контрольований PoC privileged action `triage`.
+Дата останньої fixed-перевірки: 21.10.2026. Виконано пункти 2–13: матрицю доступу,
+відтворювані vulnerable states, серверне виправлення для read/update/delete і
+direct child comment, regression tests, HTTP PoC та контрольований PoC
+privileged action `triage`. Фінальний fixed state збережено в гілці
+`lab/4-authorization` і позначено анотованим тегом `v0.4.2`.
 
 ## Пункти 2–3: контракт доступу
 
