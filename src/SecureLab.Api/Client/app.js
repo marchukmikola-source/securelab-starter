@@ -107,6 +107,10 @@ async function loadIncidentDetails(id) {
   }
 }
 
+// Навчальний probe ЛР 04 викликає цей самий UI-renderer після входу Alice.
+// Рішення про доступ залишається на сервері; клієнт лише відображає відповідь.
+window.loadIncidentDetails = loadIncidentDetails;
+
 async function loadSeveritySummary() {
   // 1. Стан завантаження (Loading State)
   summaryStatusElement.textContent = "Завантаження…";

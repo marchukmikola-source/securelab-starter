@@ -11,7 +11,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_ReturnsJson()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -34,7 +34,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithNormalUsbQuery_ReturnsOnlyUsbSeedIncident()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -72,7 +72,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithControlledReadOnlyInput_ReturnsNoMatches()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -106,7 +106,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithLegitimateApostrophe_ReturnsMatchingSeedIncident()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -137,7 +137,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithPercentSign_SearchesForLiteralPercentAndReturnsNoMatches()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -167,7 +167,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithUnsupportedSortBy_Returns400ProblemDetails()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -225,7 +225,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithoutSortBy_OrdersByCreatedAtUtcDescendingThenId()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -267,7 +267,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithSeveritySort_OrdersByBusinessRankThenId()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -309,7 +309,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     [Fact]
     public async Task Search_WithStatusSort_OrdersByBusinessRankThenId()
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -351,7 +351,7 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
     public async Task Search_WithAllowedSortBy_ReturnsJson(
         string sortBy)
     {
-        using var client = factory.CreateClient();
+        using var client = await CreateAnalystClientAsync();
 
         using var response =
             await client.GetAsync(
@@ -366,6 +366,10 @@ public sealed class SearchMechanicsTests(SecureLabApiFactory factory)
             response.Content.Headers
                 .ContentType?.MediaType);
     }
+
+    private Task<HttpClient> CreateAnalystClientAsync() =>
+        factory.LoginAsync("morgan", Environment.GetEnvironmentVariable("SeedUsers__Password")
+            ?? throw new InvalidOperationException("Set local SeedUsers__Password outside Git."));
 
     private static HashSet<Guid> ReadResultIds(
         JsonElement rows) =>

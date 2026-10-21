@@ -307,8 +307,10 @@ public sealed class IncidentCreationContractTests(SecureLabApiFactory factory)
                 .GetProperty("id")
                 .GetGuid();
 
+            using var ownerClient = await factory.LoginAsync(
+                "alice", GetLocalStudyPassword());
             using var detailsResponse =
-                await _client.GetAsync(
+                await ownerClient.GetAsync(
                     $"/api/incidents/{createdIncidentId}");
 
             Assert.Equal(
@@ -520,8 +522,10 @@ public sealed class IncidentCreationContractTests(SecureLabApiFactory factory)
             // 3. Перевірка через публічний GET endpoint
             // --------------------------------------------------------
 
+            using var ownerClient = await factory.LoginAsync(
+                "alice", GetLocalStudyPassword());
             using var detailsResponse =
-                await _client.GetAsync(
+                await ownerClient.GetAsync(
                     $"/api/incidents/{createdId}");
 
             Assert.Equal(

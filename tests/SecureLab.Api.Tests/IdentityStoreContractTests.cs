@@ -72,4 +72,30 @@ public sealed class IdentityStoreContractTests(SecureLabApiFactory factory)
             Assert.Equal(ownerId, actualOwner);
         }
     }
+
+    [Fact]
+    public async Task Seed_IncludesFixedInternalCommentByMorganForAliceIncident()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SecureLabDbContext>();
+
+        var comment = await db.IncidentComments.AsNoTracking()
+            .Where(item => item.Id == DbSeeder.AliceInternalCommentId)
+            .Select(item => new
+            {
+                item.Id,
+                item.IncidentId,
+                item.AuthorUserId,
+                item.IsInternal,
+                OwnerUserId = item.Incident.OwnerUserId
+            })
+            .SingleOrDefaultAsync();
+
+        Assert.NotNull(comment);
+        Assert.Equal(Guid.Parse("30000000-0000-0000-0000-000000000003"), comment.Id);
+        Assert.Equal(DbSeeder.AliceIncidentId, comment.IncidentId);
+        Assert.Equal(DbSeeder.AliceId, comment.OwnerUserId);
+        Assert.Equal(DbSeeder.MorganId, comment.AuthorUserId);
+        Assert.True(comment.IsInternal);
+    }
 }

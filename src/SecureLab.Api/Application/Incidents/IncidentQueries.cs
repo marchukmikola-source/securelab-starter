@@ -10,11 +10,17 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
     // 1. Метод для списку інцидентів
     public async Task<IReadOnlyList<IncidentListItemResponse>> GetListAsync(
         IncidentStatus? status,
+        IncidentReadScope scope,
+        Guid subjectId,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Loading incidents with status filter {Status}", status);
 
         var query = dbContext.Incidents.AsNoTracking();
+        if (scope == IncidentReadScope.Owned)
+        {
+            query = query.Where(incident => incident.OwnerUserId == subjectId);
+        }
         if (status is not null)
         {
             query = query.Where(incident => incident.Status == status);
@@ -33,7 +39,8 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
     }
 
     // 2. Метод для деталей інциденту
-    public Task<IncidentDetailsResponse?> GetDetailsAsync(Guid id, CancellationToken cancellationToken)
+    public Task<IncidentDetailsResponse?> GetDetailsAsync(
+        Guid id, bool includeInternalComments, CancellationToken cancellationToken)
     {
         logger.LogInformation("Loading incident {IncidentId}", id);
 
@@ -50,7 +57,7 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
                 incident.CreatedAtUtc,
                 incident.Owner.DisplayName,
                 incident.Comments
-                    .Where(comment => !comment.IsInternal)
+                    .Where(comment => includeInternalComments || !comment.IsInternal)
                     .OrderBy(comment => comment.CreatedAtUtc)
                     .Select(comment => new IncidentCommentResponse(
                         comment.Id,
@@ -63,12 +70,18 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
 
     // 3. Метод для підсумку за severity з підтримкою фільтру status (ДЛЯ ДОБРОГО РІВНЯ)
     public async Task<IReadOnlyList<IncidentSeveritySummaryResponse>> GetSeveritySummaryAsync(
-        IncidentStatus? status, // <--- 1. ДОДАЛИ ПАРАМЕТР
+        IncidentStatus? status,
+        IncidentReadScope scope,
+        Guid subjectId,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Generating severity summary with status filter {Status}", status);
 
         var query = dbContext.Incidents.AsNoTracking();
+        if (scope == IncidentReadScope.Owned)
+        {
+            query = query.Where(incident => incident.OwnerUserId == subjectId);
+        }
 
         // 2. ДОДАЛИ ФІЛЬТРАЦІЮ ПЕРЕД ГРУПУВАННЯМ
         if (status is not null)
@@ -105,6 +118,12 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
         return orderedSummary;
     }
 
+    public Task<IncidentAccessTarget?> GetAccessTargetAsync(Guid id, CancellationToken cancellationToken) =>
+        dbContext.Incidents.AsNoTracking()
+            .Where(incident => incident.Id == id)
+            .Select(incident => new IncidentAccessTarget(incident.OwnerUserId))
+            .SingleOrDefaultAsync(cancellationToken);
+
     private static int GetSeverityRank(string severity) => severity switch
     {
         nameof(IncidentSeverity.Critical) => 0,
@@ -114,3 +133,5 @@ public sealed class IncidentQueries(SecureLabDbContext dbContext, ILogger<Incide
         _ => int.MaxValue,
     };
 }
+
+public sealed record IncidentAccessTarget(Guid OwnerUserId);

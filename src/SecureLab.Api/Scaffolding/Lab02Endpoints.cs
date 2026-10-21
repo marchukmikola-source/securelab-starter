@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using SecureLab.Api.Application.Incidents;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
@@ -20,9 +21,21 @@ public static class Lab02Endpoints
             async (
                 string? q,
                 string? sortBy,
+                HttpContext httpContext,
+                IncidentAccessRules accessRules,
                 SecureLabDbContext db,
                 CancellationToken ct) =>
             {
+                var accessContext = accessRules.From(httpContext.User);
+                var scope = accessRules.ReadScope(accessContext);
+                if (scope == IncidentReadScope.Forbidden)
+                {
+                    return Results.Problem(
+                        title: "Доступ заборонено",
+                        detail: "Операція не дозволена для поточного користувача.",
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+
                 // Literal substring:
                 // %, _ та \ з q не повинні працювати як LIKE metacharacters.
                 var escapedQuery = EscapeLike(q ?? string.Empty);
@@ -40,6 +53,11 @@ public static class Lab02Endpoints
                             item.Description,
                             pattern,
                             "\\"));
+
+                if (scope == IncidentReadScope.Owned)
+                {
+                    found = found.Where(item => item.OwnerUserId == accessContext.SubjectId);
+                }
 
                 // sortBy визначає структуру SQL,
                 // тому використовуємо лише server-side allowlist.
@@ -108,7 +126,8 @@ public static class Lab02Endpoints
                     .ToListAsync(ct);
 
                 return Results.Ok(rows);
-            });
+            })
+            .RequireAuthorization();
 
         // ============================================================
         // POST /api/incidents
@@ -118,9 +137,18 @@ public static class Lab02Endpoints
             async (
                 CreateIncidentRequest request,
                 HttpContext httpContext,
+                IncidentAccessRules accessRules,
                 SecureLabDbContext db,
                 CancellationToken ct) =>
             {
+                if (!accessRules.MayCreate(accessRules.From(httpContext.User)))
+                {
+                    return Results.Problem(
+                        title: "Доступ заборонено",
+                        detail: "Операція не дозволена для поточного користувача.",
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+
                 // Поточний UTC-час фіксуємо один раз.
                 var now = DateTimeOffset.UtcNow;
 

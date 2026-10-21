@@ -1,0 +1,101 @@
+# ЛР 04: ручна перевірка fixed access contract у VS Code REST Client.
+# Для повного ізольованого PoC:
+# .\scripts\verify_lab04_poc.ps1 -Port 5084 -ExpectedState fixed -Python python
+# Пароль береться тільки з оточення процесу. Не зберігайте password/cookie у файлі чи звіті.
+@host = http://localhost:5080
+@aliceId = 20000000-0000-0000-0000-000000000001
+@bobId = 20000000-0000-0000-0000-000000000002
+@bobCommentId = 30000000-0000-0000-0000-000000000002
+@aliceInternalCommentId = 30000000-0000-0000-0000-000000000003
+@missingId = 20000000-0000-0000-0000-ffffffffffff
+
+### Alice login: 204
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### Перевірений principal Alice
+GET {{host}}/api/me
+Accept: application/json
+
+### A-02: власний Incident Alice: 200
+GET {{host}}/api/incidents/{{aliceId}}
+Accept: application/json
+
+### A-03: та сама cookie Alice, змінено лише id: безпечний 404
+GET {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+### A-10: missing також дає такий самий 404 (без traceId/requestId порівняйте body)
+GET {{host}}/api/incidents/{{missingId}}
+Accept: application/json
+
+### A-05: список Alice містить лише її Incident
+GET {{host}}/api/incidents
+Accept: application/json
+
+### A-11: унікальна назва Bob не знаходиться в owner scope Alice: 200, []
+GET {{host}}/api/incidents/search?q=%D0%9D%D0%B5%D0%B2%D1%96%D0%B4%D0%BE%D0%BC%D0%B0%20%D1%81%D0%BF%D1%80%D0%BE%D0%B1%D0%B0%20%D0%B2%D1%85%D0%BE%D0%B4%D1%83
+Accept: application/json
+
+### A-11: seed Bob з апострофом не розкривається Alice: 200, []
+GET {{host}}/api/incidents/search?q=O%27Brien
+Accept: application/json
+
+### A-11: зведення Alice обчислене лише з її Incident
+GET {{host}}/api/incidents/severity-summary
+Accept: application/json
+
+### A-04: foreign update Alice -> Bob: 404; Bob content не має змінитися
+PUT {{host}}/api/incidents/{{bobId}}
+Content-Type: application/json
+
+{
+  "title": "LR04 controlled update by Alice",
+  "description": "Контрольована навчальна спроба зміни чужого інциденту для PoC ЛР 4."
+}
+
+### A-04: foreign delete Alice -> Bob: 404; перед ним і після нього перевірте GET Bob
+DELETE {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+### A-04: Bob після забороненого DELETE Alice: 200 і без зміни content
+GET {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+### A-12: direct child Bob public comment: Alice отримує 404
+GET {{host}}/api/incident-comments/{{bobCommentId}}
+Accept: application/json
+
+### A-12: власний internal comment: Reporter також отримує 404
+GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
+Accept: application/json
+
+### Morgan/Analyst login: 204
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "userName": "morgan", "password": "{{$processEnv SeedUsers__Password}}" }
+
+### A-03R: Analyst читає Alice для аналізу: 200
+GET {{host}}/api/incidents/{{aliceId}}
+Accept: application/json
+
+### A-12: Analyst читає public child comment Bob: 200
+GET {{host}}/api/incident-comments/{{bobCommentId}}
+Accept: application/json
+
+### A-12: Analyst читає internal child comment Alice: 200
+GET {{host}}/api/incident-comments/{{aliceInternalCommentId}}
+Accept: application/json
+
+### Logout: 204
+POST {{host}}/api/auth/logout
+
+### A-01: details без входу: 401 Problem Details, без redirect
+GET {{host}}/api/incidents/{{bobId}}
+Accept: application/json
+
+# Owner update і protected fields не запускайте на сталих seed-даних вручну:
+# автоматичний fixed PoC виконує контрольований сценарій у тимчасовій БД.
