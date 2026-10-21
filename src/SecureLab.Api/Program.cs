@@ -14,6 +14,18 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("Lab05BrowserProbe", policy =>
+            policy.WithOrigins("http://localhost:4173")
+                .WithMethods("GET")
+                .WithHeaders("X-Lab-Cors-Probe")
+                .AllowCredentials());
+    });
+}
+
 var connectionString = builder.Configuration.GetConnectionString("SecureLab")
     ?? throw new InvalidOperationException(
         "Connection string 'SecureLab' не налаштовано.");
@@ -48,6 +60,13 @@ app.Use(async (context, next) =>
     context.Response.Headers.Append("Referrer-Policy", "no-referrer");
     await next(context);
 });
+
+app.UseRouting();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("Lab05BrowserProbe");
+}
 
 if (app.Environment.IsDevelopment())
 {
