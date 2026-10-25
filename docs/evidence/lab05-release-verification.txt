@@ -1,0 +1,64 @@
+Lab 05 fixed-release verification
+
+Canonical fixed lineage from the annotated tag:
+
+git log --format="%H%x09%s" v0.4.0..v0.5.0
+<target of annotated tag v0.5.0>	docs(lab5): add browser evidence and final report
+54da9a8e9048b342df1c2065e14c1f4b6c4bc6d2	lab5: secure browser rendering and response policy
+
+git show --no-patch --decorate --format=fuller v0.5.0
+tag v0.5.0
+Tagger:     Марчук Микола <marchuk_mikola@knu.ua>
+TaggerDate: recorded locally at release creation
+
+Lab 05 fixed browser security release (two-commit history)
+
+commit <target resolved by git show --no-patch v0.5.0> (tag: v0.5.0)
+
+    docs(lab5): add browser evidence and final report
+
+git bundle verify .\lab05.bundle
+./lab05.bundle is okay
+The bundle contains this ref:
+<tag object resolved by git bundle list-heads> refs/tags/v0.5.0
+The bundle records a complete history for the included public fixed refs.
+The bundle uses this hash algorithm: sha1
+
+git bundle list-heads .\lab05.bundle
+<tag object resolved by git bundle list-heads> refs/tags/v0.5.0
+
+Local fast-forward merge from v0.4.0 in a clean main worktree:
+
+git -C .\tmp\lab05-main-publish merge --ff-only rewrite/lab5-three
+Updating 8111836..<release commit>
+Fast-forward
+
+git -C .\tmp\lab05-main-publish rev-parse HEAD
+<same commit as v0.5.0>
+
+git fetch origin
+git rev-parse origin/main
+<same commit as v0.5.0>
+
+Meaning: the public release history has exactly two Lab5 commits above v0.4.0. `v0.5.0`, `main` and `lab/5-browser-xss` identify the same fixed release commit. Run the displayed commands after cloning to obtain the exact object IDs; placeholders avoid a commit claiming its own future SHA.
+
+Public-versus-private history boundary
+
+Керований vulnerable commit `7c49c5f549112866536f4eee90959b8f4b3f0312` лишається private і не є предком `v0.5.0`. Тому `lab05.bundle` навмисно містить лише fixed public lineage. «Complete history» у `git bundle verify` означає повну історію ref-ів, включених до bundle; це не означає наявність private vulnerable commit.
+
+Reviewable safe-DOM diff отримують локально, не експортуючи небезпечний стан:
+
+git diff -- src/SecureLab.Api/Client/browser-lab.js 7c49c5f549112866536f4eee90959b8f4b3f0312 54da9a8e9048b342df1c2065e14c1f4b6c4bc6d2
+
+Очікувана зміна control:
+
+- description.innerHTML = current.description;
++ renderPlainText(description, current.description);
+
+Fixed helper:
+
+function renderPlainText(element, value) {
+  element.replaceChildren(document.createTextNode(value ?? ""));
+}
+
+Нотатка про історію: публічну історію ЛР5 скорочено до двох commits на пряме прохання автора. Це переписало попереднє публічне багатокомітне подання, тому його не подано як методичний workflow без переписування історії. Поточний fixed state із двох commits перевіряють наведені вище команди.

@@ -1,0 +1,51 @@
+Lab 05 final HTTP CORS headers
+Observed locally on 2026-10-25 while the API ran in Development mode from the fixed release worktree. The older 21.10 captures were replaced: these are the final-state headers that include enforced CSP.
+
+curl.exe -sS -D - -o NUL -H "Origin: http://localhost:4173" "http://localhost:5080/health"
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Sun, 25 Oct 2026 11:16:44 GMT
+Server: Kestrel
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Origin: http://localhost:4173
+Transfer-Encoding: chunked
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+
+curl.exe -sS -D - -o NUL -H "Origin: http://localhost:4174" "http://localhost:5080/health"
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Sun, 25 Oct 2026 11:16:44 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+
+Interpretation: both direct HTTP requests reached the API, but only the exact allowed origin received Access-Control-Allow-Origin and Access-Control-Allow-Credentials. Both include final CSP, nosniff and Referrer-Policy headers. curl does not enforce browser SOP/CORS.
+
+Lab 05 explicit preflight evidence
+Observed locally on 2026-10-25 while the API was running in Development mode.
+
+curl.exe -sS -D - -o NUL -X OPTIONS -H "Origin: http://localhost:4173" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: X-Lab-Cors-Probe" "http://localhost:5080/health"
+HTTP/1.1 204 No Content
+Date: Sun, 25 Oct 2026 11:08:21 GMT
+Server: Kestrel
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Headers: X-Lab-Cors-Probe
+Access-Control-Allow-Methods: GET
+Access-Control-Allow-Origin: http://localhost:4173
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+
+curl.exe -sS -D - -o NUL -X OPTIONS -H "Origin: http://localhost:4174" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: X-Lab-Cors-Probe" "http://localhost:5080/health"
+HTTP/1.1 204 No Content
+Date: Sun, 25 Oct 2026 11:08:28 GMT
+Server: Kestrel
+X-Content-Type-Options: nosniff
+Referrer-Policy: no-referrer
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+
+Interpretation: the final allowed preflight is HTTP 204 and grants exactly GET plus X-Lab-Cors-Probe for exact origin 4173 with credentials. The control 4174 also receives a transport-level 204, but has no Access-Control-Allow-* headers, so a browser rejects the preflight and does not issue the actual cross-origin GET. curl records transport headers only; browser DevTools separately demonstrates SOP/CORS enforcement.

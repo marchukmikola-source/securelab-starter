@@ -1,0 +1,7 @@
+  SecureLab.Api -> F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab05-three-commit\src\SecureLab.Api\bin\Release\net10.0\SecureLab.Api.dll
+  SecureLab.Api.Tests -> F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab05-three-commit\tests\SecureLab.Api.Tests\bin\Release\net10.0\SecureLab.Api.Tests.dll
+Test run for F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab05-three-commit\tests\SecureLab.Api.Tests\bin\Release\net10.0\SecureLab.Api.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   101, Skipped:     0, Total:   101, Duration: 15 s - SecureLab.Api.Tests.dll (net10.0)
+Results File: F:\Фаза32\Downloads\lab 3\securelab-v0.2.0\tmp\lab05-three-commit\tests\SecureLab.Api.Tests\TestResults\lab05-final.trx
