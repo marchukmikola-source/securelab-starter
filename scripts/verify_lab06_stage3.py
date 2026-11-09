@@ -211,7 +211,7 @@ def verify_build_and_tests(release=False):
         'scope': 'clean committed release tree' if release else 'local working tree, CP-03; not final release commit',
         'teacherApproval': 'docs/evidence/lab06-advanced-approval.md'})
     support.command('restore', ['dotnet', 'restore', 'SecureLab.sln', '--locked-mode'])
-    audit_text = support.command('dependency-audit', ['dotnet', 'package', 'list', '--vulnerable', '--include-transitive', '--no-restore'])
+    audit_text = support.command('dependency-audit', ['dotnet', 'package', 'list', '--vulnerable', '--include-transitive', '--no-restore']).replace('\r\n', '\n')
     audit_json = json.loads(support.command('dependency-audit-json', ['dotnet', 'package', 'list', '--vulnerable', '--include-transitive', '--no-restore', '--format', 'json']))
     vulnerable = [package for project in audit_json.get('projects', []) for framework in project.get('frameworks', [])
                   for group in ('topLevelPackages', 'transitivePackages') for package in framework.get(group, [])

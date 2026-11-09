@@ -3,10 +3,16 @@ SDK: 10.0.403
 Command: dotnet restore SecureLab.sln --locked-mode; exit 0
 Command: dotnet package list --vulnerable --include-transitive --no-restore; exit 0
 
-
-The following sources were used:
-   https://api.nuget.org/v3/index.json
-   C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
-
-The given project `SecureLab.Api` has no vulnerable packages given the current sources.
-The given project `SecureLab.Api.Tests` has no vulnerable packages given the current sources.
+
+
+The following sources were used:
+
+   https://api.nuget.org/v3/index.json
+
+   C:\Program Files (x86)\Microsoft SDKs\NuGetPackages\
+
+
+
+The given project `SecureLab.Api` has no vulnerable packages given the current sources.
+
+The given project `SecureLab.Api.Tests` has no vulnerable packages given the current sources.

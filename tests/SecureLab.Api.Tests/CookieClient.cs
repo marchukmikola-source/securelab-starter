@@ -30,6 +30,3 @@ public static class CookieClient
         client.DefaultRequestHeaders.Add(AntiforgeryProtection.HeaderName, token.RequestToken);
     }
 }
-
-  
-
