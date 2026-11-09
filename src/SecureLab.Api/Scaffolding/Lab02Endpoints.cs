@@ -4,6 +4,7 @@ using SecureLab.Api.Application.Incidents;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
+using SecureLab.Api.Security;
 
 namespace SecureLab.Api.Scaffolding;
 
@@ -127,7 +128,8 @@ public static class Lab02Endpoints
 
                 return Results.Ok(rows);
             })
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(SearchRateLimiting.PolicyName);
 
         // ============================================================
         // POST /api/incidents
@@ -425,6 +427,8 @@ public static class Lab02Endpoints
                 StatusCodes.Status409Conflict)
             .ProducesProblem(
                 StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .AddEndpointFilter<AntiforgeryFilter>()
             .RequireAuthorization();
     }
 

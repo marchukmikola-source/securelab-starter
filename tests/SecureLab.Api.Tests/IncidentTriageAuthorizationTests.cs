@@ -121,6 +121,7 @@ public sealed class IncidentTriageAuthorizationTests(SecureLabApiFactory factory
             client.Dispose();
             throw new InvalidOperationException("Study login failed (credentials omitted).");
         }
+        await client.AddAntiforgeryTokenAsync();
         return client;
     }
 

@@ -1,0 +1,141 @@
+{
+  "startedAtUtc": "2026-11-02T09:20:51.016827+00:00",
+  "status": "PASS",
+  "checks": {
+    "environment": {
+      "sdk": "10.0.403",
+      "reviewStartCommit": "ee18ff404459584030df429c6a2c899c64cda89d",
+      "branch": "lab/6-hardening-review"
+    },
+    "build": {
+      "exitCode": 0,
+      "configuration": "Release",
+      "warnings": 0,
+      "errors": 0
+    },
+    "initial-reset": {
+      "exitCode": 0,
+      "profile": "Development",
+      "target": "127.0.0.1:54329/securelab",
+      "knownStudyTablesReseeded": true
+    },
+    "tests": {
+      "exitCode": 0,
+      "total": "106",
+      "executed": "106",
+      "passed": "106",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "reset-after-tests": {
+      "exitCode": 0,
+      "profile": "Development",
+      "target": "127.0.0.1:54329/securelab",
+      "knownStudyTablesReseeded": true
+    },
+    "development-health-before": {
+      "status": 200,
+      "state": "ready"
+    },
+    "browser-before": {
+      "browser": "Chrome / Playwright, headless",
+      "profile": "Development",
+      "transport": "HTTP loopback",
+      "login": "PASS",
+      "profileRead": "PASS",
+      "reloadSession": "PASS",
+      "incidentListCount": 3,
+      "details": "PASS",
+      "severityGroups": 4,
+      "storedMarkerRenderedAsText": true,
+      "markerExecuted": false,
+      "logout": "PASS",
+      "pageErrors": 0
+    },
+    "production-profile": {
+      "hostingEnvironment": "Production",
+      "listening": "http://localhost:5080",
+      "health": 200,
+      "openapiStatus": 404,
+      "openapiContentType": "application/problem+json",
+      "scalarStatus": 200,
+      "scalarContentType": "text/html",
+      "scalarEqualsClientFallback": true,
+      "connectionStringSource": "process environment; value omitted"
+    },
+    "production-reset-refusal": {
+      "exitCode": 3762504530,
+      "result": "refused before mutation",
+      "unchangedStateCheck": "ProductionReset_IsRejectedWithoutChangingStudyRows"
+    },
+    "unexpected-error": {
+      "hostingEnvironment": "Production",
+      "request": "POST /api/auth/login",
+      "dbTarget": "unreachable loopback port 54399",
+      "requestBody": "omitted",
+      "status": 500,
+      "contentType": "application/problem+json",
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+        "title": "An error occurred while processing your request.",
+        "status": 500,
+        "traceId": "00-36e03c031b8153a660f40202a4716199-361df3e74876de0f-00"
+      },
+      "exceptionLogExcerpt": [
+        "fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+        "      => SpanId:361df3e74876de0f, TraceId:36e03c031b8153a660f40202a4716199, ParentId:0000000000000000 => ConnectionId:0HNPOOATKG56I => RequestPath:/api/auth/login RequestId:0HNPOOATKG56I:00000001",
+        "      An unhandled exception has occurred while executing the request."
+      ],
+      "responseTraceSegment": "36e03c031b8153a660f40202a4716199",
+      "traceMatches": true,
+      "sensitiveLogMatchCounts": {
+        "seedPassword": 0,
+        "requestPassword": 0,
+        "brokenDbPassword": 0,
+        "cookieHeader": 0,
+        "setCookieHeader": 0
+      },
+      "headers": {}
+    },
+    "browser-restored": {
+      "browser": "Chrome / Playwright, headless",
+      "profile": "Development",
+      "transport": "HTTP loopback",
+      "login": "PASS",
+      "profileRead": "PASS",
+      "reloadSession": "PASS",
+      "incidentListCount": 3,
+      "details": "PASS",
+      "severityGroups": 4,
+      "storedMarkerRenderedAsText": true,
+      "markerExecuted": false,
+      "logout": "PASS",
+      "pageErrors": 0
+    },
+    "restoration": {
+      "hostingEnvironment": "Development",
+      "health": 200,
+      "state": "ready",
+      "dbTarget": "127.0.0.1:54329/securelab",
+      "browserFlow": "PASS",
+      "temporaryEnvironmentOverrides": "limited to child processes"
+    },
+    "final-state": {
+      "api": "verification processes stopped",
+      "database": "healthy normal study target",
+      "v1.0.0Created": false
+    }
+  },
+  "finishedAtUtc": "2026-11-02T09:22:03.432856+00:00"
+}

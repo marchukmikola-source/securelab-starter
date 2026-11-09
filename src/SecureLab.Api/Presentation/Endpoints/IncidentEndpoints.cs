@@ -6,6 +6,7 @@ using SecureLab.Api.Application.Incidents;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
+using SecureLab.Api.Security;
 
 namespace SecureLab.Api.Presentation.Endpoints;
 
@@ -29,6 +30,7 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
         group.MapPut("/{id:guid}", UpdateContentAsync)
+            .AddEndpointFilter<AntiforgeryFilter>()
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -36,13 +38,18 @@ public static class IncidentEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest);
         group.MapDelete("/{id:guid}", DeleteAsync)
+            .AddEndpointFilter<AntiforgeryFilter>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
         group.MapPost("/{id:guid}/triage", TriageAsync)
+            .AddEndpointFilter<AntiforgeryFilter>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status204NoContent)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
@@ -174,7 +181,7 @@ public static class IncidentEndpoints
         SecureLabDbContext db, ILoggerFactory loggerFactory, CancellationToken cancellationToken)
     {
         var actor = accessRules.From(httpContext.User);
-        var incident = await db.Incidents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        var incident = await db.Incidents.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (incident is null) return NotFound();
         var decision = accessRules.Triage(actor, incident.OwnerUserId);
         if (decision != IncidentAccessDecision.Allow)
@@ -191,8 +198,15 @@ public static class IncidentEndpoints
         }
 
         var nextStatus = IncidentStatus.Triaged;
-        incident.Status = nextStatus;
-        incident.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        var changedAt = DateTimeOffset.UtcNow;
+        // The precondition must hold when writing, including concurrent requests.
+        // State and its single history entry commit together.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        var changed = await db.Incidents.Where(item => item.Id == id && item.Status == IncidentStatus.New)
+            .ExecuteUpdateAsync(set => set.SetProperty(item => item.Status, nextStatus)
+                .SetProperty(item => item.UpdatedAtUtc, changedAt), cancellationToken);
+        if (changed != 1)
+            return Results.Problem(title: "Недійсний перехід статусу", statusCode: StatusCodes.Status409Conflict);
         db.IncidentStatusHistory.Add(new IncidentStatusHistory
         {
             Id = Guid.NewGuid(),
@@ -201,9 +215,12 @@ public static class IncidentEndpoints
             OldStatus = IncidentStatus.New,
             NewStatus = nextStatus,
             Note = "Triage transition.",
-            CreatedAtUtc = incident.UpdatedAtUtc
+            CreatedAtUtc = changedAt
         });
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        IncidentTriageAudit.Allowed(loggerFactory, actor.SubjectId, incident.Id,
+            changedAt, Activity.Current?.Id ?? httpContext.TraceIdentifier);
         return Results.NoContent();
     }
 
