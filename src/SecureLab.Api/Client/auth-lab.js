@@ -236,4 +236,32 @@ document.querySelector("#logout").addEventListener("click", async () => {
   }
 });
 
+document.querySelector("#revoke-sessions-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector("button");
+  button.disabled = true;
+  try {
+    const response = await apiFetch("/api/me/sessions/revoke-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: form.elements.currentPassword.value })
+    });
+    if (response.status === 204) {
+      clearProfile();
+      incidentForm.reset();
+      incidentResult.textContent = "";
+      showSessionState("anonymous");
+      showMessage("Усі ваші сеанси завершено. Увійдіть знову.");
+    } else {
+      showMessage(`Сеанси не відкликано: ${response.status}.`);
+    }
+  } catch {
+    showMessage("Не вдалося відкликати сеанси.");
+  } finally {
+    form.elements.currentPassword.value = "";
+    button.disabled = false;
+  }
+});
+
 void refreshSessionState();

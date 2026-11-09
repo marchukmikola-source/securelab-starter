@@ -15,6 +15,10 @@ Content-Type: application/json
 
 { "userName": "alice", "password": "{{$processEnv SeedUsers__Password}}" }
 
+### ЛР 6: token для Alice (значення не копіювати до evidence)
+# @name aliceCsrf
+GET {{host}}/api/auth/csrf
+
 ### Перевірений principal Alice
 GET {{host}}/api/me
 Accept: application/json
@@ -49,6 +53,7 @@ Accept: application/json
 
 ### A-04: foreign update Alice -> Bob: 404; Bob content не має змінитися
 PUT {{host}}/api/incidents/{{bobId}}
+X-CSRF-TOKEN: {{aliceCsrf.response.body.$.requestToken}}
 Content-Type: application/json
 
 {
@@ -58,6 +63,7 @@ Content-Type: application/json
 
 ### A-04: foreign delete Alice -> Bob: 404; перед ним і після нього перевірте GET Bob
 DELETE {{host}}/api/incidents/{{bobId}}
+X-CSRF-TOKEN: {{aliceCsrf.response.body.$.requestToken}}
 Accept: application/json
 
 ### A-04: Bob після забороненого DELETE Alice: 200 і без зміни content
@@ -78,6 +84,10 @@ Content-Type: application/json
 
 { "userName": "morgan", "password": "{{$processEnv SeedUsers__Password}}" }
 
+### ЛР 6: новий token після зміни principal на Morgan
+# @name morganCsrf
+GET {{host}}/api/auth/csrf
+
 ### A-03R: Analyst читає Alice для аналізу: 200
 GET {{host}}/api/incidents/{{aliceId}}
 Accept: application/json
@@ -92,6 +102,7 @@ Accept: application/json
 
 ### Logout: 204
 POST {{host}}/api/auth/logout
+X-CSRF-TOKEN: {{morganCsrf.response.body.$.requestToken}}
 
 ### A-01: details без входу: 401 Problem Details, без redirect
 GET {{host}}/api/incidents/{{bobId}}

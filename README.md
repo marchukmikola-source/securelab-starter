@@ -1,138 +1,104 @@
-# SecureLab starter: трекер інцидентів
+# SecureLab - трекер інцидентів, ЛР6
 
-Це baseline starter для дисципліни «Прикладні технології програмування в
-інформаційній безпеці», варіант **2-A**. Він містить один простий
-трирівневий моноліт, локальний PostgreSQL, мінімальний Vanilla JavaScript
-клієнт, відтворювані seed/reset і готовий `WebApplicationFactory` test harness.
+Автор: Микола Марчук. Baseline 2-A, цільовий рівень - відмінний.
+ASP.NET Core / Identity cookie / EF Core / PostgreSQL / Vanilla JS.
+Це cumulative fixed state ЛР1-6. Історичні протоколи збережено в docs.
 
-Це стан системи **до ЛР 1**. Далі студент послідовно розвиває власний проєкт:
-результат завершеної ЛР стає основою наступної. Якщо попередню роботу технічно
-не завершено, її потрібно завершити або виправити перед переходом далі.
+## Передумови
 
-Starter навмисно не містить завершених рішень ЛР 1–6, автентифікації,
-авторизації або навмисних уразливостей. Потрібні для конкретної роботи зміни
-студент виконує у власному проєкті за методичними вказівками й лише у
-дозволеному локальному середовищі.
+- .NET 10: перевірено SDK 10.0.403; global.json задає 10.0.100 + latestFeature, без prerelease.
+- Docker Desktop / docker compose; Git.
+- Для повної автоматизації: Python 3, Node.js, JS package playwright та встановлений Chrome.
+- Playwright має бути доступний через NODE_PATH або node_modules; у Codex bundled runtime runner знаходить NODE_PATH автоматично.
+- Для PDF export: Python reportlab; для перевірки PDF - pypdf та Poppler.
+- Вільні loopback порти: API 5080, CORS probes 4173/4174, error experiment 54399; PostgreSQL 54329.
 
-## 1. Передумови
+## Відтворюваний повний прогін
 
-- .NET SDK `10.0.302` (зафіксовано у `global.json`);
-- Docker із підтримкою `docker compose`;
-- Git;
-- вільні локальні порти `5080` і `54329`.
+Запускати тільки на власній локальній synthetic БД. Runner скидає відомі навчальні таблиці
+перед/між наборами й після завершення. Зовнішні DB/hosts не входять у scope.
 
-Перевірте:
-
-```bash
-dotnet --version
-docker --version
-docker compose version
-```
-
-## 2. Перший запуск
-
-У корені starter виконайте:
-
-```bash
+```powershell
 docker compose --env-file infra/.env.example -f infra/compose.yaml up -d --wait
-dotnet tool restore
-dotnet restore SecureLab.sln
-dotnet run --project src/SecureLab.Api
+python scripts/verify_lab06_stage3.py
 ```
 
-Під час першого Development-запуску API застосує готову EF Core migration і
-додасть фіксовані навчальні дані. Відкрийте:
+Звичайний режим записує поточний CP-03 у docs/evidence/lab06-stage3.json.
+Для фінальної перевірки committed release використовуйте **чистий checkout**:
 
-- browser client: <http://localhost:5080/>;
-- health/readiness: <http://localhost:5080/health>;
-- інтерактивний OpenAPI: <http://localhost:5080/scalar/v1>;
-- OpenAPI JSON: <http://localhost:5080/openapi/v1.json>.
-
-Зупиніть API через `Ctrl+C`. Контейнер БД зупиняється командою:
-
-```bash
-docker compose --env-file infra/.env.example -f infra/compose.yaml down
+```powershell
+python scripts/verify_lab06_stage3.py --release
 ```
 
-## 3. Відомий початковий стан
+Release mode перевіряє чисте дерево до/після, виконує fresh locked restore, audit,
+Release build, весь test pack, Chrome/CORS/CSP/CSRF, advanced revoke-all, log/secret review,
+Production normal/error та відновлює seed. Усі результати й raw logs залишає тільки
+в ignored tmp/lab06/release. Final proof: verification.json, dependency-audit.txt,
+secret-review.json та screenshots у цій папці. Raw logs не включаються до submission.
 
-Seed містить Alice, Bob, Morgan (Analyst) та Admin, три інциденти, два
-публічні коментарі й одну зміну статусу. UUID не випадкові: їх можна
-використовувати у `.http`-сценаріях і тестах.
+SeedUsers__Password читається з env або ignored tmp/lab06/local.runsettings;
+за відсутності обох runner створює випадковий локальний пароль і runsettings.
+Значення не друкуються. Початкові alice/bob/morgan/admin використовують цей seed-пароль.
+DB credentials у Development/Compose/design-time - відкрита study-only fixture для
+loopback; їх не можна повторно використовувати для іншого середовища.
 
-Локальні значення `securelab / local-study-password` є лише відкритими
-навчальними credentials для БД, прив'язаної до `127.0.0.1`. Це не секрет і
-його заборонено повторно використовувати для іншої БД чи середовища. Реальний
-connection string передавайте поза Git через `ConnectionStrings__SecureLab`.
+## Ручний запуск після автоматичного seed
 
-Щоб застосувати наявні migrations, **очистити лише відомі навчальні таблиці**
-локальної БД і повернути seed до відомого стану:
-
-```bash
-dotnet run --project src/SecureLab.Api -- --reset-database
+```powershell
+$localSettings = [xml](Get-Content ./tmp/lab06/local.runsettings -Raw)
+$env:SeedUsers__Password = $localSettings.RunSettings.RunConfiguration.EnvironmentVariables.SeedUsers__Password
+$env:ASPNETCORE_ENVIRONMENT = 'Development'
+dotnet run --project src/SecureLab.Api -c Release --no-launch-profile --urls http://localhost:5080
 ```
 
-Команда навмисно відмовляється працювати поза явно налаштованим Development
-environment. Вона знищує поточні локальні навчальні дані у відомих таблицях
-БД `securelab`, але не видаляє саму БД або її схему.
+Відкрити http://localhost:5080/ та /auth-lab.html; readiness - /health.
+Development OpenAPI JSON - /openapi/v1.json, Scalar - /scalar/v1.
+У Production OpenAPI/Scalar endpoints не реєструються: /scalar/v1 може повернути
+HTML index fallback з 200; перевіряйте Content-Type і тіло. Production потребує
+явного ConnectionStrings__SecureLab поза Git; migrations/reset defaults false,
+cookie Secure/HttpOnly/SameSite flags перевірені HTTPS-addressed TestServer.
+Реальний TLS deployment не перевірявся.
 
-## 4. Перевірка
+## Окремі build / tests
 
-Коли PostgreSQL уже працює:
-
-```bash
-dotnet build src/SecureLab.Api/SecureLab.Api.csproj --configuration Release
-dotnet test tests/SecureLab.Api.Tests/SecureLab.Api.Tests.csproj --configuration Release
+```powershell
+dotnet restore SecureLab.sln --locked-mode
+dotnet build SecureLab.sln -c Release --no-restore
+dotnet test SecureLab.sln -c Release --no-build --no-restore --settings tmp/lab06/local.runsettings
 ```
 
-На macOS/Linux або у Git Bash увесь сценарій підняття PostgreSQL і тестів
-виконує одна команда:
+Окремі tests очікують initialized known seed; для гарантованого reset використовуйте
+full runner. Reset дозволений лише у Development з Database:AllowReset=true:
+`dotnet run --project src/SecureLab.Api -- --reset-database` (той самий локальний seed env).
 
-```bash
-bash scripts/test.sh
+## Контролі й перевірки
+
+Після login client одержує standard antiforgery request token; після F5 відновлює
+його перед mutation. GET /api/auth/csrf вимагає auth, no-store/no-CORS; token тільки
+в пам'яті. X-CSRF-TOKEN потрібний для create/update/delete/triage/logout/revoke-all.
+Login/register мають окреме anonymous scope-рішення з residual risk у review.
+POST /api/me/sessions/revoke-all приймає лише currentPassword; self-only,
+standard CSRF + CheckPasswordAsync + 5 спроб/2 хв на verified subject.
+SecurityStamp rotation відкликає старі cookie на наступному protected request;
+поточний сеанс також завершується. ValidationInterval=0 збільшує DB/Set-Cookie cost.
+Search quota - 30/10 секунд на principal; login limiter збережено окремо.
+
+- [Security review](docs/security-review.md), [threat model](docs/threat-model.md).
+- [Finding cards](docs/findings/README.md), [regression pack](docs/lab-06-regression-pack.md).
+- [Approved variant](docs/advanced-variant-proposal.md), [approval evidence](docs/evidence/lab06-advanced-approval.md).
+- [CP-04 / delivery](docs/lab-06-stage4.md), [live defense](docs/lab-06-defense.md).
+- [Manual CSRF flow](tests/http/lab-06-csrf.http).
+
+## Final release / submission
+
+Committed docs -> чистий candidate run -> no-ff merge в main -> full --release на
+прийнятому merge -> annotated v1.0.0 -> export поза репозиторієм.
+Не пересувайте existing tag. Exporter перевіряє HEAD == tag commit == verified run,
+чистий Git state та створює PDF/ZIP/hash без зміни tracked docs:
+
+```powershell
+python scripts/export_lab06_submission.py --output-dir ../lr06-submission --verification tmp/lab06/release/verification.json
 ```
 
-HTTP-сценарії для ручної перевірки розташовані у `tests/http/incidents.http`.
-Вони охоплюють `200`, `400`, `404` та початковий `501` для точки розширення.
-
-## 5. Завдання ЛР 1 у starter
-
-Працюючий близький приклад — фільтр інцидентів за `status` через browser → API
-→ EF Core → PostgreSQL → JSON → безпечні DOM sinks. Обмежена точка зміни —
-`GET /api/incidents/severity-summary`, який у baseline повертає `501`.
-
-Під час ЛР 1 студент реалізує підсумок кількості інцидентів за severity,
-викликає endpoint із клієнта, безпечно відображає результат, додає
-відтворюваний HTTP-сценарій або адаптує інтеграційний тест і доповнює
-`docs/architecture.md`. Зміна схеми БД для мінімального маршруту не потрібна.
-
-## 6. Структура
-
-```text
-src/SecureLab.Api/
-  Presentation/   endpoints і зовнішні response contracts
-  Application/    сценарії застосунку
-  Data/           DbContext, entities, migration, seed/reset
-  Client/         HTML/CSS/Vanilla JavaScript
-tests/
-  SecureLab.Api.Tests/   інтеграційні й security regression приклади
-  http/                  ручні HTTP-сценарії
-infra/                   локальний PostgreSQL
-docs/                    карта архітектури, варіант, матриця доступу, звіт
-```
-
-Це не Clean/Onion Architecture, DDD, мікросервіси або вимога TDD. Каталоги
-позначають відповідальність коду в одному server project.
-
-## 7. Типові проблеми запуску
-
-| Ознака | Перевірка |
-|---|---|
-| `connection refused` до PostgreSQL | `docker compose ... ps`, порт `54329`, стан healthcheck |
-| SDK не знайдено | `dotnet --version` має повернути `10.0.302` у цій директорії |
-| порт API зайнятий | зупиніть інший процес на `5080` або задайте `ASPNETCORE_URLS` |
-| migration не застосовується | перевірте `ASPNETCORE_ENVIRONMENT=Development` і connection string |
-| змінили credentials у compose | узгоджено перевизначте `ConnectionStrings__SecureLab`; не записуйте реальне значення до Git |
-
-Перед commit перегляньте `git status`, `git diff --staged` і переконайтеся, що
-до Git не потрапили `.env`, cookies, tokens, реальні passwords, dumps або logs.
+Private remote visibility не підтверджена; fallback - локальний ZIP і hashes tag.
+Не публікуйте repository чи logs. Moodle upload та особистий захист виконує автор.

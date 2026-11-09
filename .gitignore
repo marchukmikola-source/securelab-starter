@@ -26,3 +26,4 @@ appsettings.Local.json
 *.log
 
 tmp/
+__pycache__/

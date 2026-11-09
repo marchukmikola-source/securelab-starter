@@ -157,6 +157,7 @@ public sealed class CurrentUserEndpointTests(SecureLabApiFactory factory)
             Assert.Equal(HttpStatusCode.OK, beforeLogout.StatusCode);
         }
 
+        await client.AddAntiforgeryTokenAsync();
         using var logout = await client.PostAsync("/api/auth/logout", null);
 
         Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
