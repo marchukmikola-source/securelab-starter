@@ -52,7 +52,9 @@ def main():
     if args.preview:
         print('Preview PDF created outside Git; tag not required; not a submission.')
         return
-    files = git('ls-tree', '-r', '--name-only', 'v1.0.0').splitlines()
+    tree_paths = subprocess.run(['git', 'ls-tree', '-rz', '--name-only', 'v1.0.0'],
+                                cwd=ROOT, check=True, capture_output=True).stdout.decode('utf-8')
+    files = tree_paths.rstrip('\0').split('\0')
     # Legacy binary reports and raw old TRX are unnecessary for reproducing LR06.
     omitted = [name for name in files if name.lower().endswith(('.docx', '.trx', '.bundle', '.log'))]
     included = [name for name in files if name not in omitted]
