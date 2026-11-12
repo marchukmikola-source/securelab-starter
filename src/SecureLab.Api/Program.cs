@@ -5,6 +5,7 @@ using SecureLab.Api.Application.Authentication;
 using SecureLab.Api.Application.Incidents;
 using SecureLab.Api.Data;
 using SecureLab.Api.Presentation.Endpoints;
+using SecureLab.Api.Security;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -14,17 +15,17 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
-if (builder.Environment.IsDevelopment())
+builder.Services.AddCors(options =>
 {
-    builder.Services.AddCors(options =>
+    if (builder.Environment.IsDevelopment())
     {
         options.AddPolicy("Lab05BrowserProbe", policy =>
             policy.WithOrigins("http://localhost:4173")
                 .WithMethods("GET")
                 .WithHeaders("X-Lab-Cors-Probe")
                 .AllowCredentials());
-    });
-}
+    }
+});
 
 var connectionString = builder.Configuration.GetConnectionString("SecureLab")
     ?? throw new InvalidOperationException(
@@ -35,11 +36,14 @@ builder.Services.AddDbContext<SecureLabDbContext>(options =>
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LoginAttemptLimiter>();
+builder.Services.AddSingleton<RevocationAttemptLimiter>();
 builder.Services.AddScoped<IncidentQueries>();
 builder.Services.AddSingleton<IncidentAccessRules>();
 builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
 
 builder.AddLab03Identity();
+builder.AddCookieAntiforgery();
+builder.AddSearchRateLimiting();
 
 var app = builder.Build();
 
@@ -51,34 +55,35 @@ if (resetRequested)
     return;
 }
 
-app.UseExceptionHandler();
-app.UseStatusCodePages();
-
-var csp = "default-src 'self'; frame-ancestors 'none'";
+var csp = "default-src 'self'; frame-ancestors 'none'; form-action 'self'";
 
 app.Use(async (context, next) =>
 {
-    context.Response.Headers.XContentTypeOptions = "nosniff";
-    context.Response.Headers.Append("Referrer-Policy", "no-referrer");
-
-    var isDevelopmentApiReference =
-        app.Environment.IsDevelopment()
-        && context.Request.Path.StartsWithSegments("/scalar");
-
-    if (!isDevelopmentApiReference)
+    // Register outside the exception handler: headers are applied after error-path response clearing.
+    context.Response.OnStarting(() =>
     {
-        context.Response.Headers[
-            "Content-Security-Policy"] = csp;
-    }
-
+        context.Response.Headers.XContentTypeOptions = "nosniff";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        var isDevelopmentApiReference = app.Environment.IsDevelopment()
+            && context.Request.Path.StartsWithSegments("/scalar");
+        if (!isDevelopmentApiReference)
+            context.Response.Headers["Content-Security-Policy"] = csp;
+        return Task.CompletedTask;
+    });
     await next(context);
 });
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.UseRouting();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("Lab05BrowserProbe");
+}
+else
+{
+    app.UseCors();
 }
 
 if (app.Environment.IsDevelopment())
@@ -89,6 +94,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -105,6 +111,8 @@ app.MapGet("/health", async (SecureLabDbContext dbContext, CancellationToken can
 
 app.MapIncidentEndpoints();
 app.MapLab03Identity();
+app.MapAntiforgeryToken();
+app.MapSessionRevocation();
 app.MapLab02Endpoints();
 app.MapFallbackToFile("index.html");
 

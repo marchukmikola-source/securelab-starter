@@ -1,0 +1,618 @@
+{
+  "checkedAtUtc": "2026-11-12T07:40:56.466284+00:00",
+  "status": "PASS",
+  "publicationBranch": "lab/6-hardening-review",
+  "publicationBase": "6deee13efdb487a0fa0cb611b15e282e0b6a7100",
+  "sdk": "10.0.404",
+  "build": {
+    "configuration": "Release",
+    "warnings": 0,
+    "errors": 0,
+    "workingTreeBuildInputsSha256": "f364cc9b189575b162cb4b5ae21d7363adaffef11640dd7e8f2610d3744b70ba",
+    "rawLogSha256": "a0b6a43ea779225b87501b5202b2d295efc2096f12dd8d5b3b619405db61b1d0"
+  },
+  "tests": {
+    "total": 135,
+    "passed": 135,
+    "failed": 0,
+    "skipped": 0,
+    "database": "new disposable PostgreSQL container with isolated loopback port; removed after tests",
+    "userDatabaseReset": false,
+    "scenarios": [
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(rule: \"missingUpper\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithInvalidFieldFormat_ReturnsFieldValidationError(field: \"email\", value: \"not-an-email\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithDuplicateUserName_Returns409ValidationProblem",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(rule: \"tooShort\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.AnonymousAntiforgery_UsesStandardRoundTripWithoutDatabaseLookup",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithValidInput_ReturnsSafeResponseAndAssignsReporterRole",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"password\", value: null)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithAllowedSortBy_ReturnsJson(sortBy: \"status\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.Cors_OnlyPermitsTheExactDevelopmentReadOrigin(origin: \"http://localhost:4174\", allowed: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityRegistrationFailureTests.Register_WithIdentityValidationFailure_ReturnsSafeFieldError(code: \"InvalidEmail\", expectedField: \"email\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AboveLengthLimit_Returns400WithoutCreatingAccount(field: \"email\", length: 257)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleMatchingEachBlockingStatus_Returns409(statusText: \"Resolved\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/auth/logout\", invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents\", invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentEndpointTests.GetDetails_ForUnknownId_ReturnsProblemDetails404",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentOwnershipSecurityTests.Create_WithoutOwner_AssignsOwnerFromAuthenticatedPrincipal",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.ProductionProfileTests.UnexpectedDatabaseFailure_ReturnsSafeProblemLinkedToExceptionLog",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithControlledReadOnlyInput_ReturnsNoMatches",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithInvalidFieldFormat_ReturnsFieldValidationError(field: \"userName\", value: \"invalid user name\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"email\", value: \"   \")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.LoginAttemptLimiterTests.FailedAttempts_ArePartitionedAndExpireAtTheWindowBoundary",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.SameUserOldAntiforgery_AfterStampRotationAndRelogin_BeforeAfterProvider(stampBinding: False, expected: NoContent)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.PasswordHasherUpgradeTests.VerifyHash_WithLowerWorkFactor_RequestsRehashAndAcceptsUpgradedHash",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithAllowedSortBy_ReturnsJson(sortBy: \"createdAtUtc\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(rule: \"missingDigit\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMalformedJson_Returns400InsteadOf500",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(field: \"securityStamp\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleMatchingEachBlockingStatus_Returns409(statusText: \"InProgress\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(rule: \"missingSymbol\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithUnsupportedSortBy_Returns400ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleLongerThan160Characters_Returns400",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.TokenIssuance_RequiresSessionAndDisablesCorsAndCaching",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.Cors_OnlyPermitsTheExactDevelopmentReadOrigin(origin: \"http://localhost:4173\", allowed: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents\", invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.AuthenticationProtectionTests.Login_AfterMaximumFailedAttempts_Returns429AndRecoversAfterWindow",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithCombinedSeverityNames_Returns400ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentOwnershipSecurityTests.Create_WithoutAuthentication_Returns401ProblemWithoutRedirect",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(field: \"role\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithInvalidContractFields_Returns400ValidationProblem",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.SecurityHeaders_CoverStaticSuccessValidationAndNotFound",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(field: \"id\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"PUT\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithStatusSort_OrdersByBusinessRankThenId",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"displayName\", value: \"   \")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.Update_AllowsOnlyReporterOwnerAndRejectsProtectedRequestFields",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"displayName\", value: null)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"password\", value: \"\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithoutSortBy_OrdersByCreatedAtUtcDescendingThenId",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithAllowedSortBy_ReturnsJson(sortBy: \"severity\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.ExistingIncidentEndpoints_RequireAuthenticationAndDenyAdministrator",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.RegCsrf01_RealCookieDenialPreservesStateThenTokenAllowsMutation",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Login_CreatesCookieWithExpectedSecurityAttributes",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.SameUserOldAntiforgery_AfterStampRotationAndRelogin_BeforeAfterProvider(stampBinding: True, expected: BadRequest)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.ListSearchAndSummary_AreScopedBeforeProjectionAndAggregation",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/auth/logout\", invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Me_WithForgedCookieAndForeignHeader_Returns401",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.ChildComment_EnforcesParentReadAndInternalVisibilityRules",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.ValidationCost_MeasuresDatabaseReadsLatencyAndProductionCookieRenewal(intervalMinutes: 0)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.BobSelfRevocation_CannotTargetAlice",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"email\", value: null)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Me_WithoutCookie_Returns401ProblemWithoutRedirectOrChallenge",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTrimmedTitleMatchingActiveSeedIncident_Returns409ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_HighWith39CharactersAfterTrim_Returns400",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentEndpointTests.ClientScript_DoesNotUseDangerousInnerHtmlSink",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_IgnoresClientSuppliedServerManagedFields",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_ReturnsJson",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityRegistrationFailureTests.Register_WithIdentityValidationFailure_ReturnsSafeFieldError(code: \"UnexpectedValidationFailure\", expectedField: \"registration\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithSameGeneratedTitle_Returns201Then409",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentTriageAuthorizationTests.Triage_EnforcesRoleResourceAndCurrentStatusBeforeMutation",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"userName\", value: \"   \")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.Create_DeniesAdministratorWithoutPublishedCreateRight",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WhenDescriptionEqualsTitleAfterTrim_Returns400",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.AuthenticationMechanicsTests.RealCookie_ReachesSessionCheck",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithDateMoreThanFiveMinutesInFuture_Returns400",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.ConcurrentTriageTests.SimultaneousTriage_ExactlyOneTransitionAndOneHistoryRecord",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationRequestSerializationTests.RegisterRequest_RejectsUnmappedServerManagedFields",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_DoesNotTrimPasswordAndStoresOnlyIdentityHash",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithMissingRequiredField_Returns400WithoutCreatingAccount(field: \"userName\", value: null)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithLegitimateApostrophe_ReturnsMatchingSeedIncident",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithNumericSeverity_Returns400ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AboveLengthLimit_Returns400WithoutCreatingAccount(field: \"displayName\", length: 121)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/me/sessions/revoke-all\", invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithPercentSign_SearchesForLiteralPercentAndReturnsNoMatches",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AboveLengthLimit_Returns400WithoutCreatingAccount(field: \"userName\", length: 257)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.Delete_EnforcesOwnerRuleAndPreservesForeignResourceAfterDeny",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithInvalidFieldFormat_ReturnsFieldValidationError(field: \"userName\", value: \"імя\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithoutOccurredAtUtc_Returns400ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithSeveritySort_OrdersByBusinessRankThenId",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityStoreContractTests.Seed_PreservesFixedAccountsRolesAndAliceBobOwnership",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.PasswordChecks_AreBoundedBySubject_429DoesNotRevoke_RecoversAfterWindow",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(field: \"ownerUserId\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.ProductionProfileTests.ProductionReset_IsRejectedWithoutChangingStudyRows",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.ProductionProfileTests.Production_UsesExplicitConfigurationAndPreservesProtectedErrorContracts",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"DELETE\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"DELETE\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Logout_RemovesCookieAndMakesSubsequentMeRequestUnauthorized",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentOwnershipSecurityTests.Create_WithForeignOwnerUserId_IgnoresItAndUsesAuthenticatedPrincipal",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentEndpointTests.GetDetails_DoesNotExposeInternalOwnerFields",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchRateLimitTests.Search_EnforcesQuotaIsolatesVerifiedSubjectsAndRecoversWithoutGrantingAccess",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/me/sessions/revoke-all\", invalidToken: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.TokenPair_IsBoundToCookieAndPrincipal_AndFreshLoginTokenRestoresLegitimateFlow",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.AdditionalData_HandlesAnonymousAndRejectsIncompleteAuthenticatedPrincipal",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithNonUtcOffset_NormalizesOccurredAtUtcToUtc",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.RevokeAll_RejectsBadProofs_RevokesBothAliceSessionsAndReplay_LeavesBobAndFreshLoginWorking",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_HighWith40CharactersAfterTrim_Returns201AndUsesServerFields",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithUnexpectedServerManagedField_Returns400WithoutCreatingAccount(field: \"passwordHash\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityRegistrationFailureTests.Register_WithIdentityValidationFailure_ReturnsSafeFieldError(code: \"InvalidUserName\", expectedField: \"userName\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AtLengthLimit_CreatesAccount(field: \"userName\", limit: 256)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Me_AfterAliceLogin_IgnoresForeignDemoHeaderAndReturnsOnlyAliceProfile",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityStoreContractTests.IdentityModel_UsesGuidIdentityAndDomainForeignKeysWithoutLegacyStore",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithPasswordThatFailsIdentityPolicy_ReturnsSafe400(rule: \"missingLower\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SessionRevocationTests.ValidationCost_MeasuresDatabaseReadsLatencyAndProductionCookieRenewal(intervalMinutes: 30)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WhenDescriptionAddsDetails_Returns201",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentDecTests.Details_ReporterOwner_IsAllowed",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentEndpointTests.GetList_ReturnsSeededIncidents",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.Details_EnforcesAuthenticationOwnershipAndAnalystReadContract",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.AuthenticationProtectionTests.AuthenticationEvents_ContainOnlySafeOutcomeInformation",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.SearchMechanicsTests.Search_WithNormalUsbQuery_ReturnsOnlyUsbSeedIncident",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithMissingRequiredFields_Returns400ProblemDetails",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleMatchingEachBlockingStatus_Returns409(statusText: \"New\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AtLengthLimit_CreatesAccount(field: \"email\", limit: 256)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_AtLengthLimit_CreatesAccount(field: \"displayName\", limit: 120)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleMatchingEachBlockingStatus_Returns409(statusText: \"Triaged\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentAuthorizationTests.Update_AsNonOwner_ReturnsNotFound_AndDoesNotChangeResource",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.RegistrationContractTests.Register_WithDuplicateEmail_Returns409ValidationProblem",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleDifferingOnlyByCase_Returns201",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentTriageAuthorizationTests.Triage_Denial_ProducesSafeStructuredAuditEventWithResponseTrace",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.CurrentUserEndpointTests.Login_FailuresForUnknownUserAndIncorrectPasswordHaveTheSameExternalResult",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IdentityStoreContractTests.Seed_IncludesFixedInternalCommentByMorganForAliceIncident",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"PUT\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithTitleMatchingClosedIncident_Returns201",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.IncidentCreationContractTests.Create_WithDescriptionLongerThan4000Characters_Returns400",
+        "outcome": "Passed"
+      },
+      {
+        "name": "SecureLab.Api.Tests.ProductionProfileTests.Production_AuthenticationCookieRetainsSecureHttpOnlyAndSameSiteFlags",
+        "outcome": "Passed"
+      }
+    ],
+    "trxSha256": "e7d8980cc566af0da54df49c2e64c0bfbd402fd8608a82b7c508257300a91503"
+  },
+  "dependencies": {
+    "directAndTransitive": true,
+    "projects": 2,
+    "advisories": 0
+  },
+  "secretScan": {
+    "status": "PASS",
+    "filesInPublishSnapshot": 190,
+    "textAndReportFilesChecked": 179,
+    "knownRuntimePasswordsChecked": 2,
+    "issues": [],
+    "reportSha256": {
+      "docs/lab-02-execution-report.docx": "8d9d01869cf167694e27f9dbccbe7dbe0a40cad062360fe28742ce29540349c8",
+      "docs/reports/lab06/security-review.docx": "5018eaa28ee8b0b4224ec86301193c74413e6849d3798b6b8358c66fd59136a9",
+      "docs/reports/lab06/security-review.pdf": "ab81f07f9f307a36c5c75386a9aec59081af4cb15864ce3edf4fc76a5f0cbf59",
+      "docs/Звіт_ЛР_4_фінальний.docx": "ab5f964aae5f2f66ac73f09248a777c4af0d976fa44ea97e774822be005067c4",
+      "docs/Звіт_ЛР_5_фінальний.docx": "d650af3c9abcb9ff0387ed83b498030f704f53a4e5bfb6746d9b4df83188f0f2"
+    },
+    "scope": "Publish worktree text plus PDF text and DOCX XML; known runtime passwords and credential signatures. Sanitized report image identity checked separately.",
+    "limitations": "Heuristic scan does not prove absence of unknown secrets; inherited public history is unchanged."
+  },
+  "probeVerification": {
+    "status": "PASS",
+    "marker": "FAKE-CSP-1",
+    "policy": "default-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+    "browser": "Chrome via Playwright",
+    "externalFetchCspViolation": true,
+    "externalFetchReceived": 0,
+    "externalFormPostsReceived": 1,
+    "sameOriginFormPostsReceived": 1,
+    "unsafeInputStatuses": [
+      400,
+      400,
+      400,
+      400,
+      413
+    ],
+    "headersAndArbitraryValuesNotPersisted": true,
+    "formsContainOnlyFixedSyntheticMarker": true,
+    "application5080Unchanged": true,
+    "ports": "isolated ephemeral loopback ports; user 4173/4174 processes untouched"
+  },
+  "reports": {
+    "wordImagesMatchPreviouslySanitizedEdition": true,
+    "historicalReportsNotRewrittenToClaimNewCspActual": true
+  },
+  "csp": "default-src 'self'; frame-ancestors 'none'; form-action 'self'",
+  "limitations": [
+    "Probe verification exercises the separate training fixture, not a new browser run against the API.",
+    "The user separately reported actual API browser CSP violations for form-action and fetch fallback.",
+    "No top-level navigation probe was run; no claim that all exfiltration channels or XSS are eliminated.",
+    "Older evidence retains original local run/commit identifiers; it is not a new run at the publication commit."
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "observedAtUtc": "2026-11-09T08:02:04.1170276+00:00",
+  "codeSha256BeforeFix": "6880402E6A6560F07B017A5DC86712EE82E79363C4DCD38F44CB2E25D1E643C9",
+  "testExitCode": 1,
+  "expected": "one 204, one 409, one history record",
+  "observed": {
+    "scenario": "simultaneous-triage",
+    "barrier": "two completed SELECTs before either handler continues",
+    "barrierReaders": 3,
+    "statuses": [
+      204,
+      204
+    ],
+    "historyCount": 2,
+    "finalStatus": "Triaged",
+    "sensitiveValues": "omitted"
+  }
+}

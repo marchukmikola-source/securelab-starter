@@ -8,6 +8,7 @@ using SecureLab.Api.Application.Authentication;
 using SecureLab.Api.Data;
 using SecureLab.Api.Data.Entities;
 using SecureLab.Api.Presentation.Contracts;
+using SecureLab.Api.Security;
 
 namespace SecureLab.Api.Scaffolding;
 
@@ -27,6 +28,8 @@ public static class Lab03Identity
             options.Password.RequiredLength = 10;
         }).AddEntityFrameworkStores<SecureLabDbContext>().AddDefaultTokenProviders();
         builder.Services.AddAuthorization();
+        builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+            options.ValidationInterval = TimeSpan.Zero);
         builder.Services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.HttpOnly = true;
@@ -56,7 +59,10 @@ public static class Lab03Identity
             .Produces<RegisteredUserResponse>(StatusCodes.Status201Created)
             .ProducesValidationProblem(StatusCodes.Status400BadRequest)
             .ProducesValidationProblem(StatusCodes.Status409Conflict);
-        app.MapPost("/api/auth/login", LoginAsync);
+        app.MapPost("/api/auth/login", LoginAsync)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests);
         app.MapPost("/api/auth/logout", async (
             SignInManager<ApplicationUser> signIn,
             ILoggerFactory loggerFactory) =>
@@ -66,6 +72,10 @@ public static class Lab03Identity
                 .LogInformation("Authentication event: logout completed.");
             return Results.NoContent();
         })
+            .RequireAuthorization()
+            .AddEndpointFilter<AntiforgeryFilter>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status204NoContent);
         app.MapGet("/api/me", GetCurrentUserAsync)
             .RequireAuthorization()
