@@ -36,6 +36,11 @@
       <h2 id="profile-heading">Мій профіль</h2>
       <button id="refresh-profile" type="button">Оновити профіль</button>
       <dl id="profile" aria-live="polite"></dl>
+      <form id="revoke-sessions-form">
+        <p>Завершіть усі свої сеанси, включно з поточним. Після цього потрібно ввійти знову.</p>
+        <label>Поточний пароль <input name="currentPassword" type="password" autocomplete="current-password" required maxlength="1024"></label>
+        <button type="submit">Вийти з усіх пристроїв</button>
+      </form>
     </section>
 
     <section aria-labelledby="incident-heading">

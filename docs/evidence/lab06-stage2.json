@@ -1,0 +1,460 @@
+{
+  "startedAtUtc": "2026-11-05T07:32:16.067012+00:00",
+  "status": "PASS",
+  "checks": {
+    "environment": {
+      "sdk": "10.0.403",
+      "branch": "lab/6-hardening-review",
+      "baseCommit": "ee18ff404459584030df429c6a2c899c64cda89d",
+      "workingTreeChanges": "Stage 1 and stage 2 changes are local; this is not a final release commit."
+    },
+    "build": {
+      "restoreExitCode": 0,
+      "buildExitCode": 0,
+      "warnings": 0,
+      "errors": 0
+    },
+    "initial-reset": {
+      "exitCode": 0,
+      "profile": "Development",
+      "target": "127.0.0.1:54329/securelab",
+      "knownStudyTablesReseeded": true
+    },
+    "tests": {
+      "exitCode": 0,
+      "total": "123",
+      "executed": "123",
+      "passed": "123",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0",
+      "securityScenarios": [
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents\", invalidToken: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.ProductionProfileTests.UnexpectedDatabaseFailure_ReturnsSafeProblemLinkedToExceptionLog",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.TokenPair_IsBoundToCookieAndPrincipal_AndFreshLoginTokenRestoresLegitimateFlow",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.SecurityHeaders_CoverStaticSuccessValidationAndNotFound",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.Cors_OnlyPermitsTheExactDevelopmentReadOrigin(origin: \"http://localhost:4174\", allowed: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"PUT\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.TokenIssuance_RequiresSessionAndDisablesCorsAndCaching",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.Cors_OnlyPermitsTheExactDevelopmentReadOrigin(origin: \"http://localhost:4173\", allowed: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.AuthenticationProtectionTests.Login_AfterMaximumFailedAttempts_Returns429AndRecoversAfterWindow",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.AuthenticationProtectionTests.AuthenticationEvents_ContainOnlySafeOutcomeInformation",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.ProductionProfileTests.ProductionReset_IsRejectedWithoutChangingStudyRows",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"DELETE\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.LoginAttemptLimiterTests.FailedAttempts_ArePartitionedAndExpireAtTheWindowBoundary",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.RegCsrf01_RealCookieDenialPreservesStateThenTokenAllowsMutation",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/auth/logout\", invalidToken: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents\", invalidToken: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.ProductionProfileTests.Production_AuthenticationCookieRetainsSecureHttpOnlyAndSameSiteFlags",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"PUT\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: True)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.ProductionProfileTests.Production_UsesExplicitConfigurationAndPreservesProtectedErrorContracts",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"DELETE\", path: \"/api/incidents/20000000-0000-0000-0000-00000000000\"···, invalidToken: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.BrowserHardeningTests.EveryCookieMutation_RejectsMissingOrInvalidTokenWithoutChangingState(method: \"POST\", path: \"/api/auth/logout\", invalidToken: False)",
+          "outcome": "Passed"
+        },
+        {
+          "test": "SecureLab.Api.Tests.SearchRateLimitTests.Search_EnforcesQuotaIsolatesVerifiedSubjectsAndRecoversWithoutGrantingAccess",
+          "outcome": "Passed"
+        }
+      ]
+    },
+    "reset-after-tests": {
+      "exitCode": 0,
+      "profile": "Development",
+      "target": "127.0.0.1:54329/securelab",
+      "knownStudyTablesReseeded": true
+    },
+    "browser": {
+      "client": "Chrome / Playwright",
+      "transport": "HTTP loopback",
+      "profile": "Development",
+      "regCsrf01": {
+        "login": 204,
+        "allowedInitialRead": 200,
+        "missingToken": 400,
+        "invalidToken": 400,
+        "unchangedAfterBothDenials": true,
+        "tokenIssuance": 200,
+        "validPair": 204,
+        "intendedChangeObserved": true,
+        "values": "omitted"
+      },
+      "headers": [
+        {
+          "profile": "Development",
+          "method": "GET",
+          "route": "/",
+          "status": 200,
+          "headers": {
+            "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer"
+          }
+        },
+        {
+          "profile": "Development",
+          "method": "GET",
+          "route": "/api/incidents/20000000-0000-0000-0000-000000000001",
+          "status": 200,
+          "headers": {
+            "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer"
+          }
+        },
+        {
+          "profile": "Development",
+          "method": "GET",
+          "route": "/api/incidents?status=Unknown",
+          "status": 400,
+          "headers": {
+            "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer"
+          }
+        },
+        {
+          "profile": "Development",
+          "method": "GET",
+          "route": "/api/incidents/99999999-9999-9999-9999-999999999999",
+          "status": 404,
+          "headers": {
+            "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
+            "x-content-type-options": "nosniff",
+            "referrer-policy": "no-referrer"
+          }
+        }
+      ],
+      "cookies": {
+        "auth": {
+          "httpOnly": true,
+          "sameSite": "Lax",
+          "secure": false
+        },
+        "antiforgery": {
+          "httpOnly": true,
+          "sameSite": "Strict",
+          "secure": false
+        },
+        "values": "omitted"
+      },
+      "cors": [
+        {
+          "origin": "http://localhost:4173",
+          "readable": true,
+          "status": 200,
+          "tokenEndpointReadable": false
+        },
+        {
+          "origin": "http://localhost:4174",
+          "readable": false,
+          "browserBlocked": true,
+          "tokenEndpointReadable": false
+        }
+      ],
+      "corsDirectHttp": {
+        "origin": "http://localhost:4174",
+        "status": 200,
+        "accessControlAllowOrigin": "absent",
+        "boundary": "Direct HTTP is not subject to browser CORS; authorization still required."
+      },
+      "searchRateLimit": {
+        "partitionKey": "verified NameIdentifier claim",
+        "permitLimit": 30,
+        "windowSeconds": 10,
+        "withinQuota": "30 x 200",
+        "overQuota": 429,
+        "forgedHeaderAndQuery": 429,
+        "secondUser": 200,
+        "foreignResourceStillDenied": 404,
+        "otherEndpointUnaffected": 200,
+        "afterWindow": 200
+      },
+      "ui": {
+        "register": 201,
+        "authCreate": {
+          "status": 201,
+          "csrfHeaderPresent": true
+        },
+        "createAfterReload": {
+          "status": 201,
+          "csrfHeaderPresent": true
+        },
+        "browserLabCreate": {
+          "status": 201,
+          "csrfHeaderPresent": true,
+          "subsequentRead": 200
+        },
+        "sessionDemoLogoutAfterReload": 204,
+        "newPrincipalCreate": {
+          "status": 201,
+          "csrfHeaderPresent": true
+        },
+        "authLabLogout": 204,
+        "tokenStorage": "memory only; localStorage/sessionStorage empty",
+        "pageErrors": 0,
+        "cspViolations": 0
+      }
+    },
+    "openapi-mutation-perimeter": [
+      {
+        "method": "POST",
+        "route": "/api/auth/register",
+        "responses": [
+          "201",
+          "400",
+          "409"
+        ]
+      },
+      {
+        "method": "POST",
+        "route": "/api/auth/login",
+        "responses": [
+          "204",
+          "401",
+          "429"
+        ]
+      },
+      {
+        "method": "POST",
+        "route": "/api/auth/logout",
+        "responses": [
+          "204",
+          "400",
+          "401"
+        ]
+      },
+      {
+        "method": "POST",
+        "route": "/api/incidents",
+        "responses": [
+          "201",
+          "400",
+          "401",
+          "403",
+          "409"
+        ]
+      },
+      {
+        "method": "PUT",
+        "route": "/api/incidents/{id}",
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "403",
+          "404",
+          "409"
+        ]
+      },
+      {
+        "method": "DELETE",
+        "route": "/api/incidents/{id}",
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "403",
+          "404"
+        ]
+      },
+      {
+        "method": "POST",
+        "route": "/api/incidents/{id}/triage",
+        "responses": [
+          "204",
+          "400",
+          "401",
+          "403",
+          "404",
+          "409"
+        ]
+      }
+    ],
+    "production-500-headers": {
+      "profile": "Production",
+      "method": "POST",
+      "route": "/api/auth/login",
+      "status": 500,
+      "contentType": "application/problem+json",
+      "headers": {
+        "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
+        "x-content-type-options": "nosniff",
+        "referrer-policy": "no-referrer"
+      },
+      "response": {
+        "type": "https://tools.ietf.org/html/rfc9110#section-15.6.1",
+        "title": "An error occurred while processing your request.",
+        "status": 500,
+        "traceId": "00-370fb9557a306697203b63b13d3dacf7-4aaef9360df2748d-00"
+      },
+      "exceptionLogExcerpt": [
+        "fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]",
+        "      => SpanId:4aaef9360df2748d, TraceId:370fb9557a306697203b63b13d3dacf7, ParentId:0000000000000000 => ConnectionId:0HNPR1T92OIMP => RequestPath:/api/auth/login RequestId:0HNPR1T92OIMP:00000001",
+        "      An unhandled exception has occurred while executing the request."
+      ],
+      "traceMatches": true,
+      "sensitiveLogMatchCounts": {
+        "seedPassword": 0,
+        "requestPassword": 0,
+        "brokenDbPassword": 0,
+        "cookieHeader": 0,
+        "setCookieHeader": 0,
+        "csrfHeader": 0
+      }
+    },
+    "final-reset": {
+      "exitCode": 0,
+      "profile": "Development",
+      "target": "127.0.0.1:54329/securelab",
+      "knownStudyTablesReseeded": true
+    },
+    "restoration": {
+      "profile": "Development",
+      "health": 200,
+      "dbTarget": "127.0.0.1:54329/securelab",
+      "browser": {
+        "browser": "Chrome / Playwright, headless",
+        "profile": "Development",
+        "transport": "HTTP loopback",
+        "login": "PASS",
+        "profileRead": "PASS",
+        "reloadSession": "PASS",
+        "incidentListCount": 3,
+        "details": "PASS",
+        "severityGroups": 4,
+        "storedMarkerRenderedAsText": true,
+        "markerExecuted": false,
+        "logout": "PASS",
+        "pageErrors": 0
+      },
+      "temporaryConfiguration": "child processes only"
+    },
+    "final-state": {
+      "apiVerificationProcesses": "stopped",
+      "database": "normal known seed",
+      "v1.0.0Created": false,
+      "remainingWork": "Stages 3–4 and approved advanced variant"
+    },
+    "final-contract-verification": {
+      "openapiDeclaredStatusesVerified": true,
+      "protectedMutationCount": 5,
+      "publicAuthMutationCount": 2,
+      "targetedProductionCookieTestPassed": 1,
+      "antiforgeryCookieProductionFlags": [
+        "Secure",
+        "HttpOnly",
+        "SameSite=Strict"
+      ],
+      "verifiedAtUtc": "2026-11-05T07:39:09.516523+00:00"
+    },
+    "adapted-legacy-regressions": {
+      "lab04Access": {
+        "exitCode": 0,
+        "perimeter": true,
+        "mutation": true,
+        "pocChecks": "passed"
+      },
+      "lab04Triage": {
+        "exitCode": 0,
+        "checks": "passed"
+      },
+      "finalRestoredBrowser": {
+        "browser": "Chrome / Playwright, headless",
+        "profile": "Development",
+        "transport": "HTTP loopback",
+        "login": "PASS",
+        "profileRead": "PASS",
+        "reloadSession": "PASS",
+        "incidentListCount": 3,
+        "details": "PASS",
+        "severityGroups": 4,
+        "storedMarkerRenderedAsText": true,
+        "markerExecuted": false,
+        "logout": "PASS",
+        "pageErrors": 0
+      },
+      "verifiedAtUtc": "2026-11-05T07:43:06.906708+00:00"
+    }
+  },
+  "finishedAtUtc": "2026-11-05T07:35:25.202085+00:00"
+}

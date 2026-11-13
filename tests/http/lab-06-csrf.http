@@ -1,0 +1,47 @@
+# VS Code REST Client. Власний localhost, cookie jar цього клієнта, seed-пароль з env.
+# Виконуйте послідовно; останній PUT змінює навчальний ресурс. Не публікуйте cookies/token values.
+@host = http://localhost:5080
+@incident = 20000000-0000-0000-0000-000000000003
+
+### 1. Вхід: 204
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{"userName":"alice","password":"{{$processEnv SeedUsers__Password}}"}
+
+### 2. Дозволений GET: 200, запам'ятайте title/description
+GET {{host}}/api/incidents/{{incident}}
+
+### 3. Без request token: 400, code=csrf_validation_failed
+PUT {{host}}/api/incidents/{{incident}}
+Content-Type: application/json
+
+{"title":"LR06 protected update","description":"Legitimate content after standard antiforgery validation."}
+
+### 4. Повторний GET: 200, title/description не змінилися
+GET {{host}}/api/incidents/{{incident}}
+
+### 5. Невалідний request token: той самий 400
+PUT {{host}}/api/incidents/{{incident}}
+Content-Type: application/json
+X-CSRF-TOKEN: invalid-study-token
+
+{"title":"LR06 protected update","description":"Legitimate content after standard antiforgery validation."}
+
+### 6. Видача токена: 200, значення в proof не копіювати
+# @name csrf
+GET {{host}}/api/auth/csrf
+
+### 7. Валідна пара: 204
+PUT {{host}}/api/incidents/{{incident}}
+Content-Type: application/json
+X-CSRF-TOKEN: {{csrf.response.body.$.requestToken}}
+
+{"title":"LR06 protected update","description":"Legitimate content after standard antiforgery validation."}
+
+### 8. GET: 200, видно саме очікувану зміну
+GET {{host}}/api/incidents/{{incident}}
+
+### 9. Logout також потребує request token: 204
+POST {{host}}/api/auth/logout
+X-CSRF-TOKEN: {{csrf.response.body.$.requestToken}}

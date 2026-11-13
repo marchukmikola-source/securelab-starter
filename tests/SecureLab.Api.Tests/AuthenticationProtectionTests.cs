@@ -121,6 +121,7 @@ public sealed class AuthenticationProtectionTests
             Assert.Equal(HttpStatusCode.TooManyRequests, rateLimitedResponse.StatusCode);
         }
 
+        await client.AddAntiforgeryTokenAsync();
         using (var logoutResponse = await client.PostAsync("/api/auth/logout", null))
         {
             Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);

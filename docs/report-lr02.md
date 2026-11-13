@@ -11,7 +11,7 @@
 
 | Параметр | Значення |
 |---|---|
-| Репозиторій | `https://github.com/Nikkola008/securelab-starter.git` |
+| Репозиторій | `https://github.com/marchukmikola-source/securelab-starter.git` |
 | Робоча гілка | `lab/2-input-sqli` |
 | Базовий тег | `v0.1.0` |
 | Наданий стартовий стан | `lab-02-start-v1` |

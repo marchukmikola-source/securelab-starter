@@ -43,6 +43,11 @@ class Client:
         headers = {"Accept": "application/json"}
         if data is not None:
             headers["Content-Type"] = "application/json"
+        verb = method or ("POST" if data is not None else "GET")
+        if verb in ("POST", "PUT", "PATCH", "DELETE") and path not in ("/api/auth/login", "/api/auth/register"):
+            status, _, token = self.request("/api/auth/csrf")
+            if status == 200 and isinstance(token, dict) and token.get("requestToken"):
+                headers["X-CSRF-TOKEN"] = token["requestToken"]
         request = urllib.request.Request(
             self.host + path,
             data=None if data is None else json.dumps(data).encode("utf-8"),
@@ -55,7 +60,7 @@ class Client:
             response = error
         with response:
             raw = response.read()
-            body = json.loads(raw) if raw else None
+            body = json.loads(raw) if raw and response.headers.get_content_type() in ("application/json", "application/problem+json") else None
             return response.status, response.headers.get_content_type(), body
 
 
@@ -119,13 +124,17 @@ def run(args, password):
         clients[user] = client
 
     alice, bob, morgan = (clients[user] for user in SUBJECTS)
-    # Exact same opener, cookie, method and headers; only the URL identifier differs.
+    # Same authenticated client/principal, method and headers; only the resource identifier differs.
+    # Identity stamp validation may legitimately renew cookie bytes on every response (LR06).
     cookie_before = tuple((cookie.name, cookie.value) for cookie in alice.jar)
     details(alice, ALICE, 200, "A-02 Alice -> Alice")
     foreign = details(alice, BOB, 200 if vulnerable else 404, "A-03 Alice -> Bob")
     cookie_after = tuple((cookie.name, cookie.value) for cookie in alice.jar)
-    require(bool(cookie_before) and cookie_before == cookie_after, "Alice session changed")
-    print("alice_same_cookie_for_own_and_foreign=true")
+    require(bool(cookie_before) and bool(cookie_after), "Alice authenticated cookie disappeared")
+    profile = alice.request("/api/me")
+    require(profile[0] == 200 and profile[2].get("id") == SUBJECTS["alice"], "Alice verified subject changed")
+    print("alice_same_verified_subject_for_own_and_foreign=true")
+    print("identity_cookie_renewed=" + str(cookie_before != cookie_after).lower())
     require(alice.request("/api/me")[2]["id"] == SUBJECTS["alice"], "Alice principal changed")
     unknown = details(alice, MISSING, 404, "A-10 Alice -> missing")
     if not vulnerable:

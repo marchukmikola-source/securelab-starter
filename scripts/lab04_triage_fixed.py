@@ -36,6 +36,11 @@ class Client:
         headers = {"Accept": "application/json"}
         if data is not None:
             headers["Content-Type"] = "application/json"
+        verb = method or ("POST" if data is not None else "GET")
+        if verb in ("POST", "PUT", "PATCH", "DELETE") and path not in ("/api/auth/login", "/api/auth/register"):
+            status, _, token = self.request("/api/auth/csrf")
+            if status == 200 and isinstance(token, dict) and token.get("requestToken"):
+                headers["X-CSRF-TOKEN"] = token["requestToken"]
         request = urllib.request.Request(
             self.host + path,
             data=None if data is None else json.dumps(data).encode("utf-8"),
@@ -48,7 +53,7 @@ class Client:
             response = error
         with response:
             raw = response.read()
-            return response.status, response.headers.get_content_type(), json.loads(raw) if raw else None
+            return response.status, response.headers.get_content_type(), json.loads(raw) if raw and response.headers.get_content_type() in ("application/json", "application/problem+json") else None
 
 
 def require(condition, message):
